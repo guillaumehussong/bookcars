@@ -19,7 +19,7 @@ const Locations = () => {
 
   const onLoad = async () => {
     const _locations = await LocationService.getLocationsWithPosition()
-    console.log('Locations data:', _locations)
+
     setLocations(_locations)
   }
 
