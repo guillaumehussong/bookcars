@@ -19,6 +19,7 @@ const Locations = () => {
 
   const onLoad = async () => {
     const _locations = await LocationService.getLocationsWithPosition()
+    console.log('Locations data:', _locations)
     setLocations(_locations)
   }
 
@@ -26,7 +27,7 @@ const Locations = () => {
     <Layout onLoad={onLoad} strict={false}>
       <div className="locations">
         <Map
-          position={new L.LatLng(34.0268755, 1.6528399999999976)}
+          position={new L.LatLng(13.4409, -89.0557)}
           initialZoom={5}
           locations={locations}
           onSelelectPickUpLocation={async (locationId) => {
