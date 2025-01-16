@@ -4,3 +4,7 @@
 /**/*.pem-chain
 /**/*.ca.pem
 /**/.DS_Store
+.idea/bookcars.iml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/caches/deviceStreaming.xml
