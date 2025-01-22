@@ -4,3 +4,7 @@
 /**/*.pem-chain
 /**/*.ca.pem
 /**/.DS_Store
+**/.env.docker
+
+mobile/app.json
+mobile/eas.json
