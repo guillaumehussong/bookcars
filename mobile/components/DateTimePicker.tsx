@@ -31,8 +31,6 @@ const CustomDateTimePicker = ({
   mode = 'date',
   size,
   label: dateTimeLabel,
-  backgroundColor,
-  error,
   style,
   helperText,
   minDate,

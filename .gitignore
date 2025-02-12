@@ -8,3 +8,9 @@
 
 mobile/app.json
 mobile/eas.json
+
+docker-compose.yml
+
+.idea
+
+bookcars.gz
