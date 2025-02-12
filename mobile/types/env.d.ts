@@ -14,7 +14,6 @@ declare module '@env' {
   export const BC_CAR_IMAGE_HEIGHT: string
   export const BC_MINIMUM_AGE: string
   export const BC_STRIPE_PUBLISHABLE_KEY: string
-  export const BC_STRIPE_MERCHANT_IDENTIFIER: string
   export const BC_STRIPE_COUNTRY_CODE: string
   export const BC_BASE_CURRENCY: string
   export const BC_DEPOSIT_FILTER_VALUE_1: string

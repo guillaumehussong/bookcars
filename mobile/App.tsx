@@ -105,7 +105,7 @@ const App = () => {
     <GlobalProvider>
       <SafeAreaProvider>
         <Provider>
-          <StripeProvider publishableKey={env.STRIPE_PUBLISHABLE_KEY} merchantIdentifier={env.STRIPE_MERCHANT_IDENTIFIER}>
+          <StripeProvider publishableKey={env.STRIPE_PUBLISHABLE_KEY} >
             <AutocompleteDropdownContextProvider>
               <NavigationContainer ref={navigationRef} onReady={onReady}>
                 <ExpoStatusBar style="light" backgroundColor="rgba(0, 0, 0, .9)" />

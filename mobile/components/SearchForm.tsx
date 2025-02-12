@@ -11,6 +11,7 @@ import Switch from '@/components/Switch'
 import Button from '@/components/Button'
 import LocationSelectList from '@/components/LocationSelectList'
 import DateTimePicker from '@/components/DateTimePicker'
+import { s } from 'react-native-size-matters'
 
 export interface SearchFormProps {
   navigation: NativeStackNavigationProp<StackParams, keyof StackParams>,

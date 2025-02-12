@@ -657,7 +657,7 @@ const CheckoutScreen = ({ navigation, route }: NativeStackScreenProps<StackParam
             locale: language,
             receiptEmail: (!authenticated ? driver?.email : user?.email) as string,
             name: '',
-            description: 'BookCars Mobile Service',
+            description: 'SiCarro Mobile Service',
             customerName: (!authenticated ? driver?.fullName : user?.fullName) as string,
           }
 
@@ -674,7 +674,7 @@ const CheckoutScreen = ({ navigation, route }: NativeStackScreenProps<StackParam
             const { error: initPaymentSheetError } = await initPaymentSheet({
               customerId,
               paymentIntentClientSecret: clientSecret,
-              merchantDisplayName: 'BookCars',
+              merchantDisplayName: 'SiCarro',
               googlePay: {
                 merchantCountryCode: env.STRIPE_COUNTRY_CODE.toUpperCase(),
                 testEnv: env.STRIPE_PUBLISHABLE_KEY.includes('_test_'),

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { StyleSheet, View, Pressable, Text } from 'react-native'
-import ReactDateTimePicker from '@react-native-community/datetimepicker'
+import { StyleSheet, View, Pressable, Text, Platform } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
+import DateTimePickerModal from 'react-native-modal-datetime-picker'
 import { format } from 'date-fns'
 import { enUS, fr, es } from 'date-fns/locale'
 import { MaterialIcons } from '@expo/vector-icons'
@@ -8,8 +9,8 @@ import * as bookcarsHelper from ':bookcars-helper'
 
 interface DateTimePickerProps {
   value?: Date
-  locale?: string,
-  mode?: 'date' | 'datetime' | 'time' | 'countdown'
+  locale?: string
+  mode?: 'date' | 'datetime' | 'time'
   size?: 'small'
   label: string
   backgroundColor?: string
@@ -24,10 +25,10 @@ interface DateTimePickerProps {
   onChange?: (date: Date | undefined) => void
 }
 
-const DateTimePicker = ({
+const CustomDateTimePicker = ({
   value: dateTimeValue,
   locale: dateTimeLocale,
-  mode,
+  mode = 'date',
   size,
   label: dateTimeLabel,
   backgroundColor,
@@ -44,73 +45,20 @@ const DateTimePicker = ({
   const [label, setLabel] = useState('')
   const [value, setValue] = useState<Date | undefined>(dateTimeValue)
   const [show, setShow] = useState(false)
-  const [locale, setLoacle] = useState(dateTimeLocale === 'fr' ? fr : dateTimeLocale === 'es' ? es : enUS)
+  const [locale, setLocale] = useState(dateTimeLocale === 'fr' ? fr : dateTimeLocale === 'es' ? es : enUS)
   const _format = mode === 'date' ? 'eeee, d LLLL yyyy' : 'kk:mm'
   const now = new Date()
   const small = size === 'small'
 
   useEffect(() => {
-    const _locale = dateTimeLocale === 'fr' ? fr : dateTimeLocale === 'es' ? es : enUS
-    setLoacle(_locale)
-    setLabel((value && bookcarsHelper.capitalize(format(value, _format, { locale: _locale }))) || dateTimeLabel)
-  }, [dateTimeLocale]) // eslint-disable-line react-hooks/exhaustive-deps
+    setLocale(dateTimeLocale === 'fr' ? fr : dateTimeLocale === 'es' ? es : enUS)
+    setLabel((value && bookcarsHelper.capitalize(format(value, _format, { locale }))) || dateTimeLabel)
+  }, [dateTimeLocale])
 
   useEffect(() => {
     setValue(dateTimeValue)
     setLabel((dateTimeValue && bookcarsHelper.capitalize(format(dateTimeValue, _format, { locale }))) || dateTimeLabel)
-  }, [dateTimeValue]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const styles = StyleSheet.create({
-    container: {
-      maxWidth: 480,
-    },
-    label: {
-      backgroundColor: backgroundColor ?? '#F5F5F5',
-      color: 'rgba(0, 0, 0, 0.6)',
-      fontSize: 12,
-      fontWeight: '400',
-      paddingRight: 5,
-      paddingLeft: 5,
-      marginLeft: 15,
-      position: 'absolute',
-      top: -10,
-      zIndex: 1,
-    },
-    dateContainer: {
-      alignSelf: 'stretch',
-      height: small ? 37 : 55,
-      fontSize: small ? 14 : 16,
-      borderWidth: 1,
-      borderRadius: 10,
-      borderColor: error ? '#d32f2f' : 'rgba(0, 0, 0, 0.23)',
-      backgroundColor: backgroundColor ?? '#F5F5F5',
-    },
-    dateButton: {
-      height: 55,
-      alignSelf: 'stretch',
-      flexDirection: 'row',
-    },
-    dateText: {
-      flex: 1,
-      fontSize: small ? 14 : 16,
-      paddingTop: small ? 8 : 15,
-      paddingRight: 15,
-      paddingBottom: small ? 8 : 15,
-      paddingLeft: 15,
-    },
-    helperText: {
-      color: error ? '#d32f2f' : 'rgba(0, 0, 0, 0.23)',
-      fontSize: 12,
-      fontWeight: '400',
-      paddingLeft: 5,
-    },
-    clear: {
-      flex: 0,
-      position: 'absolute',
-      right: 10,
-      top: small ? 7 : 17,
-    },
-  })
+  }, [dateTimeValue])
 
   return (
     <View style={{ ...style, ...styles.container }}>
@@ -149,9 +97,10 @@ const DateTimePicker = ({
             />
           )}
         </Pressable>
-        {helperText && <Text style={styles.helperText}>{helperText}</Text>}
-        {show && (
-          <ReactDateTimePicker
+
+        {/* Android Picker */}
+        {Platform.OS === 'android' && show && (
+          <DateTimePicker
             mode={mode}
             value={value || now}
             minimumDate={minDate}
@@ -167,9 +116,83 @@ const DateTimePicker = ({
             }}
           />
         )}
+
+        {/* iOS Modal Picker */}
+        {Platform.OS === 'ios' && (
+          <DateTimePickerModal
+            isVisible={show}
+            mode={mode}
+            date={value || now}
+            minimumDate={minDate}
+            maximumDate={maxDate}
+            onConfirm={(date) => {
+              setShow(false)
+              setValue(date)
+              if (onChange) {
+                onChange(date)
+              }
+            }}
+            onCancel={() => setShow(false)}
+          />
+        )}
+
+        {helperText && <Text style={styles.helperText}>{helperText}</Text>}
       </View>
     </View>
   )
 }
 
-export default DateTimePicker
+const styles = StyleSheet.create({
+  container: {
+    maxWidth: 480,
+  },
+  label: {
+    backgroundColor: '#F5F5F5',
+    color: 'rgba(0, 0, 0, 0.6)',
+    fontSize: 12,
+    fontWeight: '400',
+    paddingRight: 5,
+    paddingLeft: 5,
+    marginLeft: 15,
+    position: 'absolute',
+    top: -10,
+    zIndex: 1,
+  },
+  dateContainer: {
+    alignSelf: 'stretch',
+    height: 55,
+    fontSize: 16,
+    borderWidth: 1,
+    borderRadius: 10,
+    borderColor: 'rgba(0, 0, 0, 0.23)',
+    backgroundColor: '#F5F5F5',
+  },
+  dateButton: {
+    height: 55,
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dateText: {
+    flex: 1,
+    fontSize: 16,
+    paddingTop: 15,
+    paddingRight: 15,
+    paddingBottom: 15,
+    paddingLeft: 15,
+  },
+  helperText: {
+    color: 'rgba(0, 0, 0, 0.23)',
+    fontSize: 12,
+    fontWeight: '400',
+    paddingLeft: 5,
+  },
+  clear: {
+    position: 'absolute',
+    right: 10,
+    top: 17,
+  },
+})
+
+export default CustomDateTimePicker

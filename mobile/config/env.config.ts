@@ -14,7 +14,6 @@ import {
   BC_CAR_IMAGE_HEIGHT,
   BC_MINIMUM_AGE,
   BC_STRIPE_PUBLISHABLE_KEY,
-  BC_STRIPE_MERCHANT_IDENTIFIER,
   BC_STRIPE_COUNTRY_CODE,
   BC_BASE_CURRENCY,
   BC_DEPOSIT_FILTER_VALUE_1,
@@ -209,13 +208,6 @@ export const MINIMUM_AGE: number = Number.parseInt(BC_MINIMUM_AGE, 10) || 21
  * @type {string}
  */
 export const STRIPE_PUBLISHABLE_KEY: string = BC_STRIPE_PUBLISHABLE_KEY
-
-/**
- * The merchant identifier you registered with Apple for use with Apple Pay.
- *
- * @type {string}
- */
-export const STRIPE_MERCHANT_IDENTIFIER: string = BC_STRIPE_MERCHANT_IDENTIFIER
 
 /**
  * The two-letter ISO 3166 code of the country of your business, e.g. "US". Required for Stripe payments.
