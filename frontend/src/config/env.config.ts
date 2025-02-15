@@ -54,6 +54,43 @@ const CURRENCIES: Currency[] = [
   },
 ]
 
+const getPaymentGateway = () => {
+  const paymentGateway = String(import.meta.env.VITE_BC_PAYMENT_GATEWAY || 'stripe').toUpperCase()
+
+  if (paymentGateway === 'PAYPAL') {
+    return bookcarsTypes.PaymentGateway.PayPal
+  }
+
+  // Default is Stripe
+  return bookcarsTypes.PaymentGateway.Stripe
+}
+
+const PAYMENT_GATEWAY = getPaymentGateway()
+
+/**
+ * Minimum rental duration in hours between pick up and drop off. Default is 1 hour.
+ * Should be equal to 1 hour or higher.
+ *
+ * @type {number}
+ */
+let MIN_RENTAL_HOURS = Number.parseInt(String(import.meta.env.VITE_BC_MIN_RENTAL_HOURS), 10) || 1
+
+if (MIN_RENTAL_HOURS < 1) {
+  MIN_RENTAL_HOURS = 1
+}
+
+/**
+ * Minimum required time in hours before pick-up. Default is 1 hour.
+ * Should be equal to 1 hour or higher.
+ *
+ * @type {number}
+ */
+let MIN_PICK_UP_HOURS = Number.parseInt(String(import.meta.env.VITE_BC_MIN_PICK_UP_HOURS), 10) || 1
+
+if (MIN_PICK_UP_HOURS < 1) {
+  MIN_PICK_UP_HOURS = 1
+}
+
 const env = {
   isMobile: window.innerWidth <= 960,
   isProduction: import.meta.env.VITE_NODE_ENV === 'production',
@@ -98,7 +135,9 @@ const env = {
     (import.meta.env.VITE_BC_PAGINATION_MODE && import.meta.env.VITE_BC_PAGINATION_MODE.toUpperCase()) === Const.PAGINATION_MODE.INFINITE_SCROLL
       ? Const.PAGINATION_MODE.INFINITE_SCROLL
       : Const.PAGINATION_MODE.CLASSIC,
+  PAYMENT_GATEWAY,
   STRIPE_PUBLISHABLE_KEY: String(import.meta.env.VITE_BC_STRIPE_PUBLISHABLE_KEY),
+  PAYPAL_CLIENT_ID: String(import.meta.env.VITE_BC_PAYPAL_CLIENT_ID),
   SET_LANGUAGE_FROM_IP: (import.meta.env.VITE_BC_SET_LANGUAGE_FROM_IP && import.meta.env.VITE_BC_SET_LANGUAGE_FROM_IP.toLowerCase()) === 'true',
   GOOGLE_ANALYTICS_ENABLED: (import.meta.env.VITE_BC_GOOGLE_ANALYTICS_ENABLED && import.meta.env.VITE_BC_GOOGLE_ANALYTICS_ENABLED.toLowerCase()) === 'true',
   GOOGLE_ANALYTICS_ID: String(import.meta.env.VITE_BC_GOOGLE_ANALYTICS_ID),
@@ -113,6 +152,12 @@ const env = {
    * Minimum number of locations required for country tabs in homepage.
    */
   MIN_LOCATIONS: Number.parseInt(String(import.meta.env.VITE_BC_MIN_LOCATIONS), 10) || 4,
+  HIDE_SUPPLIERS: (import.meta.env.VITE_BC_HIDE_SUPPLIERS && import.meta.env.VITE_BC_HIDE_SUPPLIERS.toLowerCase()) === 'true',
+  MIN_RENTAL_HOURS,
+  MIN_PICK_UP_HOURS,
+  MAP_LATITUDE: Number(String(import.meta.env.VITE_BC_MAP_LATITUDE || '34.0268755')),
+  MAP_LONGITUDE: Number(String(import.meta.env.VITE_BC_MAP_LONGITUDE || '1.6528399999999976')),
+  MAP_ZOOM: Number(String(import.meta.env.VITE_BC_MAP_ZOOM || '5')),
 }
 
 export default env

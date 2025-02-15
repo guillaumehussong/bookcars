@@ -15,6 +15,8 @@ import carRoutes from './routes/carRoutes'
 import userRoutes from './routes/userRoutes'
 import stripeRoutes from './routes/stripeRoutes'
 import countryRoutes from './routes/countryRoutes'
+import paypalRoutes from './routes/paypalRoutes'
+import ipinfoRoutes from './routes/ipinfoRoutes'
 import * as helper from './common/helper'
 
 const app = express()
@@ -52,6 +54,8 @@ app.use('/', carRoutes)
 app.use('/', userRoutes)
 app.use('/', stripeRoutes)
 app.use('/', countryRoutes)
+app.use('/', paypalRoutes)
+app.use('/', ipinfoRoutes)
 
 i18n.locale = env.DEFAULT_LANGUAGE
 

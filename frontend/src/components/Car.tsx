@@ -27,7 +27,7 @@ import { strings as commonStrings } from '@/lang/common'
 import { strings } from '@/lang/cars'
 import Badge from '@/components/Badge'
 import * as UserService from '@/services/UserService'
-import * as StripeService from '@/services/StripeService'
+import * as PaymentService from '@/services/PaymentService'
 
 import DoorsIcon from '@/assets/img/car-door.png'
 import DistanceIcon from '@/assets/img/distance-icon.png'
@@ -85,7 +85,7 @@ const Car = ({
   useEffect(() => {
     const fetchPrice = async () => {
       if (from && to) {
-        const _totalPrice = await StripeService.convertPrice(bookcarsHelper.calculateTotalPrice(car, from as Date, to as Date))
+        const _totalPrice = await PaymentService.convertPrice(bookcarsHelper.calculateTotalPrice(car, from as Date, to as Date))
         setTotalPrice(_totalPrice)
         setDays(bookcarsHelper.days(from, to))
       }
@@ -96,12 +96,12 @@ const Car = ({
 
   useEffect(() => {
     const init = async () => {
-      const _cancellation = (car.cancellation > -1 && await helper.getCancellation(car.cancellation, language)) || ''
-      const _amendments = (car.amendments > -1 && await helper.getAmendments(car.amendments, language)) || ''
-      const _theftProtection = (car.theftProtection > -1 && await helper.getTheftProtection(car.theftProtection, language)) || ''
-      const _collisionDamageWaiver = (car.collisionDamageWaiver > -1 && await helper.getCollisionDamageWaiver(car.collisionDamageWaiver, language)) || ''
-      const _fullInsurance = (car.fullInsurance > -1 && await helper.getFullInsurance(car.fullInsurance, language)) || ''
-      const _additionalDriver = (car.additionalDriver > -1 && await helper.getAdditionalDriver(car.additionalDriver, language)) || ''
+      const _cancellation = (car.cancellation > -1 && (await helper.getCancellation(car.cancellation, language))) || ''
+      const _amendments = (car.amendments > -1 && (await helper.getAmendments(car.amendments, language))) || ''
+      const _theftProtection = (car.theftProtection > -1 && (await helper.getTheftProtection(car.theftProtection, language))) || ''
+      const _collisionDamageWaiver = (car.collisionDamageWaiver > -1 && (await helper.getCollisionDamageWaiver(car.collisionDamageWaiver, language))) || ''
+      const _fullInsurance = (car.fullInsurance > -1 && (await helper.getFullInsurance(car.fullInsurance, language))) || ''
+      const _additionalDriver = (car.additionalDriver > -1 && (await helper.getAdditionalDriver(car.additionalDriver, language))) || ''
 
       setCancellation(_cancellation)
       setAmendments(_amendments)
@@ -112,7 +112,7 @@ const Car = ({
       setLoading(false)
 
       if (!hidePrice) {
-        const _totalPrice = await StripeService.convertPrice(bookcarsHelper.calculateTotalPrice(car, from as Date, to as Date))
+        const _totalPrice = await PaymentService.convertPrice(bookcarsHelper.calculateTotalPrice(car, from as Date, to as Date))
         setTotalPrice(_totalPrice)
       }
       // console.log('init car')

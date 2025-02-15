@@ -5,11 +5,13 @@ import {
   Button,
   FormControlLabel,
   Checkbox,
+  FormHelperText,
 } from '@mui/material'
 import { DateTimeValidationError } from '@mui/x-date-pickers'
-import env from '@/config/env.config'
+import { addHours } from 'date-fns'
 import * as bookcarsTypes from ':bookcars-types'
 import * as bookcarsHelper from ':bookcars-helper'
+import env from '@/config/env.config'
 import { strings as commonStrings } from '@/lang/common'
 import { strings } from '@/lang/search-form'
 import * as UserService from '@/services/UserService'
@@ -34,39 +36,44 @@ const SearchForm = ({
 }: SearchFormProps) => {
   const navigate = useNavigate()
 
-  const _minDate = new Date()
-  _minDate.setDate(_minDate.getDate() + 1)
+  let _minDate = new Date()
+  _minDate = addHours(_minDate, env.MIN_PICK_UP_HOURS)
 
   const [pickupLocation, setPickupLocation] = useState('')
   const [selectedPickupLocation, setSelectedPickupLocation] = useState<bookcarsTypes.Location | undefined>(undefined)
   const [dropOffLocation, setDropOffLocation] = useState('')
   const [selectedDropOffLocation, setSelectedDropOffLocation] = useState<bookcarsTypes.Location | undefined>(undefined)
   const [minDate, setMinDate] = useState(_minDate)
-  const [maxDate, setMaxDate] = useState<Date>()
   const [from, setFrom] = useState<Date>()
   const [to, setTo] = useState<Date>()
   const [sameLocation, setSameLocation] = useState(true)
   const [fromError, setFromError] = useState(false)
   const [toError, setToError] = useState(false)
   const [ranges, setRanges] = useState(bookcarsHelper.getAllRanges())
+  const [minPickupHoursError, setMinPickupHoursError] = useState(false)
+  const [minRentalHoursError, setMinRentalHoursError] = useState(false)
 
   useEffect(() => {
     const _from = new Date()
-    _from.setDate(_from.getDate() + 1)
+    if (env.MIN_PICK_UP_HOURS < 72) {
+      _from.setDate(_from.getDate() + 3)
+    } else {
+      _from.setDate(_from.getDate() + Math.ceil(env.MIN_PICK_UP_HOURS / 24) + 1)
+    }
     _from.setHours(10)
     _from.setMinutes(0)
     _from.setSeconds(0)
     _from.setMilliseconds(0)
 
     const _to = new Date(_from)
-    _to.setDate(_to.getDate() + 3)
+    if (env.MIN_RENTAL_HOURS < 72) {
+      _to.setDate(_to.getDate() + 3)
+    } else {
+      _to.setDate(_to.getDate() + Math.ceil(env.MIN_RENTAL_HOURS / 24) + 1)
+    }
 
-    const _maxDate = new Date(_to)
-    _maxDate.setDate(_maxDate.getDate() - 1)
-    setMaxDate(_maxDate)
-
-    const __minDate = new Date(_from)
-    __minDate.setDate(__minDate.getDate() + 1)
+    let __minDate = new Date()
+    __minDate = addHours(__minDate, env.MIN_RENTAL_HOURS)
 
     setMinDate(__minDate)
     setFrom(_from)
@@ -103,11 +110,33 @@ const SearchForm = ({
 
   useEffect(() => {
     if (from) {
-      const __minDate = new Date(from)
-      __minDate.setDate(from.getDate() + 1)
+      let __minDate = new Date(from)
+      __minDate = addHours(__minDate, env.MIN_RENTAL_HOURS)
       setMinDate(__minDate)
+
+      if (from.getTime() - Date.now() < env.MIN_PICK_UP_HOURS * 60 * 60 * 1000) {
+        setMinPickupHoursError(true)
+      } else {
+        setMinPickupHoursError(false)
+      }
     }
-  }, [from])
+
+    if (from && to) {
+      if (from.getTime() > to.getTime()) {
+        const _to = new Date(from)
+        if (env.MIN_RENTAL_HOURS < 24) {
+          _to.setDate(_to.getDate() + 1)
+        } else {
+          _to.setDate(_to.getDate() + Math.ceil(env.MIN_RENTAL_HOURS / 24) + 1)
+        }
+        setTo(_to)
+      } else if (to.getTime() - from.getTime() < env.MIN_RENTAL_HOURS * 60 * 60 * 1000) {
+        setMinRentalHoursError(true)
+      } else {
+        setMinRentalHoursError(false)
+      }
+    }
+  }, [from, to])
 
   useEffect(() => {
     setRanges(__ranges || bookcarsHelper.getAllRanges())
@@ -154,7 +183,7 @@ const SearchForm = ({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    if (!pickupLocation || !dropOffLocation || !from || !to || fromError || toError) {
+    if (!pickupLocation || !dropOffLocation || !from || !to || fromError || toError || minPickupHoursError || minRentalHoursError) {
       return
     }
 
@@ -185,8 +214,9 @@ const SearchForm = ({
         <LocationSelectList
           label={commonStrings.PICK_UP_LOCATION}
           hidePopupIcon
-          customOpen={env.isMobile}
-          init={!env.isMobile}
+          // customOpen={env.isMobile}
+          // init={!env.isMobile}
+          init
           required
           variant="outlined"
           value={selectedPickupLocation}
@@ -198,15 +228,11 @@ const SearchForm = ({
           label={strings.PICK_UP_DATE}
           value={from}
           minDate={_minDate}
-          maxDate={maxDate}
           variant="outlined"
           required
           onChange={(date) => {
             if (date) {
-              const __minDate = new Date(date)
-              __minDate.setDate(date.getDate() + 1)
               setFrom(date)
-              setMinDate(__minDate)
               setFromError(false)
             } else {
               setFrom(undefined)
@@ -222,6 +248,7 @@ const SearchForm = ({
           }}
           language={UserService.getLanguage()}
         />
+        <FormHelperText error={minPickupHoursError}>{(minPickupHoursError && strings.MIN_PICK_UP_HOURS_ERROR) || ''}</FormHelperText>
       </FormControl>
       <FormControl className="to">
         <DateTimePicker
@@ -232,14 +259,10 @@ const SearchForm = ({
           required
           onChange={(date) => {
             if (date) {
-              const _maxDate = new Date(date)
-              _maxDate.setDate(_maxDate.getDate() - 1)
               setTo(date)
-              setMaxDate(_maxDate)
               setToError(false)
             } else {
               setTo(undefined)
-              setMaxDate(undefined)
             }
           }}
           onError={(err: DateTimeValidationError) => {
@@ -251,6 +274,7 @@ const SearchForm = ({
           }}
           language={UserService.getLanguage()}
         />
+        <FormHelperText error={minRentalHoursError}>{(minRentalHoursError && strings.MIN_RENTAL_HOURS_ERROR) || ''}</FormHelperText>
       </FormControl>
       <Button type="submit" variant="contained" className="btn-search">
         {commonStrings.SEARCH}
@@ -272,8 +296,9 @@ const SearchForm = ({
           <LocationSelectList
             label={commonStrings.DROP_OFF_LOCATION}
             hidePopupIcon
-            customOpen={env.isMobile}
-            init={!env.isMobile}
+            // customOpen={env.isMobile}
+            // init={!env.isMobile}
+            init
             value={selectedDropOffLocation}
             required
             variant="outlined"

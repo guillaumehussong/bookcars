@@ -6,6 +6,7 @@ import * as bookcarsTypes from ':bookcars-types'
 import * as bookcarsHelper from ':bookcars-helper'
 import { strings } from '@/lang/search'
 import * as helper from '@/common/helper'
+import env from '@/config/env.config'
 import * as LocationService from '@/services/LocationService'
 import * as SupplierService from '@/services/SupplierService'
 // import * as UserService from '@/services/UserService'
@@ -255,8 +256,8 @@ const Search = () => {
                   {((pickupLocation.latitude && pickupLocation.longitude)
                     || (pickupLocation.parkingSpots && pickupLocation.parkingSpots.length > 0)) && (
                       <Map
-                        position={[pickupLocation.latitude || 36.191113, pickupLocation.longitude || 44.009167]}
-                        initialZoom={pickupLocation.latitude && pickupLocation.longitude ? 10 : 2.5}
+                        position={[pickupLocation.latitude || Number(pickupLocation.parkingSpots![0].latitude), pickupLocation.longitude || Number(pickupLocation.parkingSpots![0].longitude)]}
+                        initialZoom={10}
                         locations={[pickupLocation]}
                         parkingSpots={pickupLocation.parkingSpots}
                         className="map"
@@ -271,7 +272,6 @@ const Search = () => {
                     dropOffLocation={dropOffLocation}
                     from={from}
                     to={to}
-                    accordion
                     collapse
                     onSubmit={handleCarFilterSubmit}
                   />
@@ -291,7 +291,7 @@ const Search = () => {
                   {
                     showFilters && (
                       <>
-                        <SupplierFilter className="filter" suppliers={suppliers} onChange={handleSupplierFilterChange} />
+                        {!env.HIDE_SUPPLIERS && <SupplierFilter className="filter" suppliers={suppliers} onChange={handleSupplierFilterChange} />}
                         <CarRatingFilter className="filter" onChange={handleRatingFilterChange} />
                         <CarRangeFilter className="filter" onChange={handleRangeFilterChange} />
                         <CarMultimediaFilter className="filter" onChange={handleMultimediaFilterChange} />
@@ -329,7 +329,7 @@ const Search = () => {
                 seats={seats}
                 // distance={distance}
                 // onLoad={() => setLoadingPage(false)}
-                hideSupplier
+                hideSupplier={env.HIDE_SUPPLIERS}
                 // includeAlreadyBookedCars
                 includeComingSoonCars
               />

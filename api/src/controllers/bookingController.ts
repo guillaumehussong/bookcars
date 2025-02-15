@@ -118,6 +118,7 @@ export const confirm = async (user: env.User, supplier: env.User, booking: env.B
     day: 'numeric',
     hour: 'numeric',
     minute: 'numeric',
+    timeZone: env.TIMEZONE,
   }
   const from = booking.from.toLocaleString(locale, options)
   const to = booking.to.toLocaleString(locale, options)
@@ -264,13 +265,15 @@ export const checkout = async (req: Request, res: Response) => {
     }
 
     if (!body.payLater) {
-      const { paymentIntentId, sessionId } = body
+      const { payPal, paymentIntentId, sessionId } = body
 
-      if (!paymentIntentId && !sessionId) {
+      if (!payPal && !paymentIntentId && !sessionId) {
         throw new Error('paymentIntentId and sessionId not found')
       }
 
-      body.booking.customerId = body.customerId
+      if (!payPal) {
+        body.booking.customerId = body.customerId
+      }
 
       if (paymentIntentId) {
         const paymentIntent = await stripeAPI.paymentIntents.retrieve(paymentIntentId)
@@ -281,7 +284,7 @@ export const checkout = async (req: Request, res: Response) => {
         }
 
         body.booking.paymentIntentId = paymentIntentId
-        body.booking.status = bookcarsTypes.BookingStatus.Paid
+        body.booking.status = body.booking.isDeposit ? bookcarsTypes.BookingStatus.Deposit : bookcarsTypes.BookingStatus.Paid
       } else {
         //
         // Bookings created from checkout with Stripe are temporary
@@ -290,7 +293,7 @@ export const checkout = async (req: Request, res: Response) => {
         let expireAt = new Date()
         expireAt.setSeconds(expireAt.getSeconds() + env.BOOKING_EXPIRE_AT)
 
-        body.booking.sessionId = body.sessionId
+        body.booking.sessionId = !payPal ? body.sessionId : undefined
         body.booking.status = bookcarsTypes.BookingStatus.Void
         body.booking.expireAt = expireAt
 
@@ -349,7 +352,7 @@ export const checkout = async (req: Request, res: Response) => {
       await notify(user, booking.id, supplier, message)
 
       // Notify admin
-      const admin = !!env.ADMIN_EMAIL && await User.findOne({ email: env.ADMIN_EMAIL, type: bookcarsTypes.UserType.Admin })
+      const admin = !!env.ADMIN_EMAIL && (await User.findOne({ email: env.ADMIN_EMAIL, type: bookcarsTypes.UserType.Admin }))
       if (admin) {
         i18n.locale = admin.language
         message = body.payLater ? i18n.t('BOOKING_PAY_LATER_NOTIFICATION') : i18n.t('BOOKING_PAID_NOTIFICATION')
@@ -792,6 +795,7 @@ export const getBookings = async (req: Request, res: Response) => {
       car,
     } = body
     const from = (body.filter && body.filter.from && new Date(body.filter.from)) || null
+    const dateBetween = (body.filter && body.filter.dateBetween && new Date(body.filter.dateBetween)) || null
     const to = (body.filter && body.filter.to && new Date(body.filter.to)) || null
     const pickupLocation = (body.filter && body.filter.pickupLocation) || null
     const dropOffLocation = (body.filter && body.filter.dropOffLocation) || null
@@ -808,12 +812,26 @@ export const getBookings = async (req: Request, res: Response) => {
     if (car) {
       $match.$and!.push({ 'car._id': { $eq: new mongoose.Types.ObjectId(car) } })
     }
-    if (from) {
-      $match.$and!.push({ from: { $gte: from } })
-    } // $from > from
+
+    if (dateBetween) {
+      const dateBetweenStart = new Date(dateBetween)
+      dateBetweenStart.setHours(0, 0, 0, 0)
+      const dateBetweenEnd = new Date(dateBetween)
+      dateBetweenEnd.setHours(23, 59, 59, 999)
+
+      $match.$and!.push({
+        $and: [
+          { from: { $lte: dateBetweenEnd } },
+          { to: { $gte: dateBetweenStart } },
+        ],
+      })
+    } else if (from) {
+      $match.$and!.push({ from: { $gte: from } }) // $from >= from
+    }
+
     if (to) {
-      $match.$and!.push({ to: { $lte: to } })
-    } // $to < to
+      $match.$and!.push({ to: { $lte: to } })// $to < to
+    }
     if (pickupLocation) {
       $match.$and!.push({ 'pickupLocation._id': { $eq: new mongoose.Types.ObjectId(pickupLocation) } })
     }
@@ -1041,7 +1059,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
       await notify(booking.driver, booking.id, supplier, i18n.t('CANCEL_BOOKING_NOTIFICATION'))
 
       // Notify admin
-      const admin = !!env.ADMIN_EMAIL && await User.findOne({ email: env.ADMIN_EMAIL, type: bookcarsTypes.UserType.Admin })
+      const admin = !!env.ADMIN_EMAIL && (await User.findOne({ email: env.ADMIN_EMAIL, type: bookcarsTypes.UserType.Admin }))
       if (admin) {
         i18n.locale = admin.language
         await notify(booking.driver, booking.id, admin, i18n.t('CANCEL_BOOKING_NOTIFICATION'))

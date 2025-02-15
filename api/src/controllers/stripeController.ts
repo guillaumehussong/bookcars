@@ -127,11 +127,6 @@ export const checkCheckoutSession = async (req: Request, res: Response) => {
     // (Set BookingStatus to Paid and remove expireAt TTL index)
     //
     if (session.payment_status === 'paid') {
-      const supplier = await User.findById(booking.supplier)
-      if (!supplier) {
-        throw new Error(`Supplier ${booking.supplier} not found`)
-      }
-
       booking.expireAt = undefined
       booking.status = booking.isDeposit ? bookcarsTypes.BookingStatus.Deposit : bookcarsTypes.BookingStatus.Paid
       await booking.save()
@@ -144,6 +139,11 @@ export const checkCheckoutSession = async (req: Request, res: Response) => {
       }
       car.trips += 1
       await car.save()
+
+      const supplier = await User.findById(booking.supplier)
+      if (!supplier) {
+        throw new Error(`Supplier ${booking.supplier} not found`)
+      }
 
       // Send confirmation email to customer
       const user = await User.findById(booking.driver)
@@ -164,7 +164,7 @@ export const checkCheckoutSession = async (req: Request, res: Response) => {
       await bookingController.notify(user, booking.id, supplier, message)
 
       // Notify admin
-      const admin = !!env.ADMIN_EMAIL && await User.findOne({ email: env.ADMIN_EMAIL, type: bookcarsTypes.UserType.Admin })
+      const admin = !!env.ADMIN_EMAIL && (await User.findOne({ email: env.ADMIN_EMAIL, type: bookcarsTypes.UserType.Admin }))
       if (admin) {
         i18n.locale = admin.language
         message = i18n.t('BOOKING_PAID_NOTIFICATION')
