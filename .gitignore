@@ -8,6 +8,8 @@
 
 mobile/app.json
 mobile/eas.json
+mobile/package-lock.json
+mobile/package.json
 
 docker-compose.yml
 
