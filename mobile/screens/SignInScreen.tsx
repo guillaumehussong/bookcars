@@ -13,7 +13,6 @@ import Error from '@/components/Error'
 import * as UserService from '@/services/UserService'
 import * as helper from '@/common/helper'
 import Switch from '@/components/Switch'
-import Header from '@/components/Header'
 
 const SignInScreen = ({ navigation, route }: NativeStackScreenProps<StackParams, 'SignIn'>) => {
   const isFocused = useIsFocused()
@@ -190,9 +189,7 @@ const SignInScreen = ({ navigation, route }: NativeStackScreenProps<StackParams,
   }
 
   return (
-    <View style={styles.master}>
-      <Header route={route} title={i18n.t('SIGN_IN_TITLE')} hideTitle={false} loggedIn={false} />
-
+    <View style={[styles.master, { backgroundColor: '#f5f5f5' }]}>
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps={helper.android() ? 'handled' : 'always'}

@@ -246,6 +246,7 @@ export const fr = {
   HIDE_FILTERS: 'Cacher les filtres',
   COMING_SOON: 'Bientôt Disponible',
   FULLY_BOOKED: 'Déjà réservée',
+  FAVORITES: 'Favoris',
   MIN_PICK_UP_HOURS_ERROR: `L'heure de prise en charge de la voiture doit être au moins ${env.MIN_PICK_UP_HOURS} heure${env.MIN_PICK_UP_HOURS > 1 ? 's' : ''} plus tard`,
   MIN_RENTAL_HOURS_ERROR: `Il doit y avoir au moins ${env.MIN_RENTAL_HOURS} heure${env.MIN_RENTAL_HOURS > 1 ? 's' : ''} entre la prise en charge et la restitution de la voiture`,
 }

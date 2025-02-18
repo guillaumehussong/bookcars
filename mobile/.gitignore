@@ -92,3 +92,7 @@ android/
 ios/
 
 %ProgramData%/
+
+app.json
+
+.cursor/*.mpc

@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native'
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -8,7 +8,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import * as Notifications from 'expo-notifications'
 import { StripeProvider } from '@stripe/stripe-react-native'
 import Toast from 'react-native-toast-message'
-import DrawerNavigator from './components/DrawerNavigator'
+import TabNavigator from './components/TabNavigator'
 import * as helper from './common/helper'
 import * as NotificationService from './services/NotificationService'
 import * as UserService from './services/UserService'
@@ -82,41 +82,29 @@ const App = () => {
 
   setTimeout(() => {
     setAppIsReady(true)
+    SplashScreen.hideAsync()
   }, 500)
-
-  const onReady = useCallback(async () => {
-    if (appIsReady) {
-      //
-      // This tells the splash screen to hide immediately! If we call this after
-      // `setAppIsReady`, then we may see a blank screen while the app is
-      // loading its initial state and rendering its first pixels. So instead,
-      // we hide the splash screen once we know the root view has already
-      // performed layout.
-      //
-      await SplashScreen.hideAsync()
-    }
-  }, [appIsReady])
 
   if (!appIsReady) {
     return null
   }
 
   return (
-    <GlobalProvider>
-      <SafeAreaProvider>
-        <Provider>
-          <StripeProvider publishableKey={env.STRIPE_PUBLISHABLE_KEY} >
+    <SafeAreaProvider>
+      <Provider>
+        <StripeProvider publishableKey={env.STRIPE_PUBLISHABLE_KEY}>
+          <GlobalProvider>
             <AutocompleteDropdownContextProvider>
-              <NavigationContainer ref={navigationRef} onReady={onReady}>
+              <NavigationContainer ref={navigationRef}>
+                <TabNavigator />
                 <ExpoStatusBar style="light" backgroundColor="rgba(0, 0, 0, .9)" />
-                <DrawerNavigator />
-                <Toast />
               </NavigationContainer>
             </AutocompleteDropdownContextProvider>
-          </StripeProvider>
-        </Provider>
-      </SafeAreaProvider>
-    </GlobalProvider>
+          </GlobalProvider>
+        </StripeProvider>
+      </Provider>
+      <Toast />
+    </SafeAreaProvider>
   )
 }
 

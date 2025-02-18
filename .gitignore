@@ -10,6 +10,7 @@ mobile/app.json
 mobile/eas.json
 mobile/package-lock.json
 mobile/package.json
+mobile/.*
 
 docker-compose.yml
 

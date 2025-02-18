@@ -16,7 +16,6 @@ import DateTimePicker from '@/components/DateTimePicker'
 import * as env from '@/config/env.config'
 import Error from '@/components/Error'
 import Backdrop from '@/components/Backdrop'
-import Header from '@/components/Header'
 
 const SignUpScreen = ({ navigation, route }: NativeStackScreenProps<StackParams, 'SignUp'>) => {
   const isFocused = useIsFocused()
@@ -318,7 +317,6 @@ const SignUpScreen = ({ navigation, route }: NativeStackScreenProps<StackParams,
 
   return (
     <View style={styles.master}>
-      <Header route={route} title={i18n.t('SIGN_UP_TITLE')} hideTitle={false} loggedIn={false} />
 
       {language && (
         <ScrollView
