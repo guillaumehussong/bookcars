@@ -19,6 +19,7 @@ type RootStackParams = {
   MainTabs: undefined
   SignIn: undefined
   SignUp: undefined
+  ForgotPassword: { email?: string }
 }
 
 const Tab = createBottomTabNavigator<TabStackParams>()
@@ -104,7 +105,9 @@ const TabNavigator = () => {
   }
 
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={{
+      animation: 'none'
+    }}>
       <Stack.Screen
         name="MainTabs"
         component={MainTabs}
@@ -112,7 +115,7 @@ const TabNavigator = () => {
       />
       <Stack.Screen
         name="SignIn"
-        component={SignInScreen}
+        component={SignInScreen as React.ComponentType<any>}
         options={({ navigation }) => ({
           presentation: 'modal',
           headerShown: true,
@@ -136,7 +139,7 @@ const TabNavigator = () => {
       />
       <Stack.Screen
         name="SignUp"
-        component={SignUpScreen}
+        component={SignUpScreen as React.ComponentType<any>}
         options={({ navigation }) => ({
           presentation: 'modal',
           headerShown: true,

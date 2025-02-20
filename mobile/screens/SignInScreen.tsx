@@ -181,7 +181,7 @@ const SignInScreen = ({ navigation, route }: NativeStackScreenProps<StackParams,
   }
 
   const onPressSignUp = () => {
-    navigation.navigate('SignUp', {})
+    navigation.replace('SignUp', {})
   }
 
   const onPressForgotPassword = () => {
