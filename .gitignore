@@ -4,3 +4,5 @@
 /**/*.pem-chain
 /**/*.ca.pem
 /**/.DS_Store
+
+docker-compose.yml
