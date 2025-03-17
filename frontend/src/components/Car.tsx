@@ -153,6 +153,8 @@ const Car = ({
 
   const handleRatingClick = () => {
     if (car.rating && car.rating >= 1) {
+      console.log('Car ID in handleRatingClick:', car._id);
+      console.log('Car data:', car);
       setReviewType('car')
       setOpenReviewsDialog(true)
     }
@@ -160,6 +162,7 @@ const Car = ({
 
   const handleSupplierClick = () => {
     if (car.supplier && typeof car.supplier === 'object') {
+      console.log('Supplier ID in handleSupplierClick:', car.supplier._id);
       setReviewType('supplier')
       setOpenReviewsDialog(true)
     }

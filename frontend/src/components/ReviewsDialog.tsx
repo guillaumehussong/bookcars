@@ -67,20 +67,28 @@ const ReviewsDialog = ({
       setLoading(true)
       let result
 
+      console.log('Fetching reviews for:', carId || supplierId)
+
       if (carId) {
         result = await ReviewService.getCarReviews(carId, page, pageSize)
       } else if (supplierId) {
         result = await ReviewService.getSupplierReviews(supplierId, page, pageSize)
       }
 
+      console.log('API result:', result)
+
       if (result && result.length > 0 && result[0].resultData) {
+        console.log('Setting reviews:', result[0].resultData)
         setReviews(result[0].resultData)
         if (result[0].pageInfo.length > 0) {
           setTotalRecords(result[0].pageInfo[0].totalRecords)
         }
+      } else {
+        console.log('No reviews found in the result')
       }
       setLoading(false)
     } catch (err) {
+      console.error('Error fetching reviews:', err)
       helper.error(err)
       setLoading(false)
     }
@@ -116,6 +124,8 @@ const ReviewsDialog = ({
       day: 'numeric',
     })
   }
+
+  console.log('Current reviews state:', reviews)
 
   return (
     <Dialog
