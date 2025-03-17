@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Button, Alert, Skeleton } from '@mui/material'
+import { Button } from '@mui/material'
 import { Tune as FiltersIcon } from '@mui/icons-material'
 import * as bookcarsTypes from ':bookcars-types'
 import * as bookcarsHelper from ':bookcars-helper'
@@ -9,7 +9,6 @@ import * as helper from '@/common/helper'
 import env from '@/config/env.config'
 import * as LocationService from '@/services/LocationService'
 import * as SupplierService from '@/services/SupplierService'
-import * as GoogleMapsService from '@/services/GoogleMapsService'
 // import * as UserService from '@/services/UserService'
 import Layout from '@/components/Layout'
 import NoMatch from './NoMatch'
@@ -27,7 +26,6 @@ import CarRangeFilter from '@/components/CarRangeFilter'
 import CarMultimediaFilter from '@/components/CarMultimediaFilter'
 import CarSeatsFilter from '@/components/CarSeatsFilter'
 import Map from '@/components/Map'
-import SuppliersMap from '@/components/SuppliersMap'
 // import Progress from '@/components/Progress'
 import ViewOnMapButton from '@/components/ViewOnMapButton'
 import MapDialog from '@/components/MapDialog'
@@ -47,7 +45,7 @@ const Search = () => {
   const [to, setTo] = useState<Date>()
   const [allSuppliers, setAllSuppliers] = useState<bookcarsTypes.User[]>([])
   const [allSuppliersIds, setAllSuppliersIds] = useState<string[]>([])
-  const [suppliers, setSuppliers] = useState<bookcarsTypes.SortedSupplier[]>([]) // Modifier pour SortedSupplier
+  const [suppliers, setSuppliers] = useState<bookcarsTypes.User[]>([])
   const [supplierIds, setSupplierIds] = useState<string[]>()
   const [loading, setLoading] = useState(true)
   const [carSpecs, setCarSpecs] = useState<bookcarsTypes.CarSpecs>({})
@@ -109,47 +107,16 @@ const Search = () => {
           exactLocationOnly,
         }
 
-        // Ajouter les coordonnées GPS si disponibles
-        if (pickupLocationCoords) {
-          payload.pickupCoordinates = pickupLocationCoords
-          console.log('Using provided pickup location coordinates:', pickupLocationCoords)
-        }
-
         try {
           setNetworkError(false)
           console.log('Fetching suppliers with payload:', JSON.stringify(payload))
           
-          // Essayer d'abord de récupérer les fournisseurs triés par distance
-          if (pickupLocationCoords) {
-            try {
-              const sortedSuppliers = await GoogleMapsService.getSortedSuppliersByDistance(
-                { ...pickupLocation, ...pickupLocationCoords } as bookcarsTypes.LocationWithCoordinates,
-                payload
-              )
-              console.log(`Retrieved ${sortedSuppliers.length} suppliers sorted by distance`)
-              setSuppliers(sortedSuppliers)
-              const sortedIds = sortedSuppliers.map(s => s._id).filter((id): id is string => id !== undefined)
-              setSupplierIds(sortedIds)
-              setLoading(false)
-              return
-            } catch (sortError) {
-              console.error('Failed to get sorted suppliers by distance:', sortError)
-              // Continuer avec la méthode standard si la méthode par distance échoue
-            }
-          }
-          
-          // Méthode standard si pas de coordonnées ou si la méthode par distance a échoué
+          // Méthode standard
           const frontendSuppliers = await SupplierService.getFrontendSuppliers(payload)
           console.log(`Retrieved ${frontendSuppliers.length} frontend suppliers`)
           
           if (frontendSuppliers.length > 0) {
-            // Convertir les fournisseurs en SortedSupplier
-            const suppliersWithDistance = frontendSuppliers.map(supplier => ({
-              ...supplier,
-              distance: 0 // Distance par défaut
-            })) as bookcarsTypes.SortedSupplier[]
-            
-            setSuppliers(suppliersWithDistance)
+            setSuppliers(frontendSuppliers)
             const ids = bookcarsHelper.flattenSuppliers(frontendSuppliers)
             setSupplierIds(ids.filter(id => id !== undefined) as string[])
           } else {
@@ -171,7 +138,9 @@ const Search = () => {
       }
     }
 
-    updateSuppliers()
+    if (from && to) {
+      updateSuppliers()
+    }
   }, [
     pickupLocation,
     pickupLocationCoords,
@@ -274,7 +243,6 @@ const Search = () => {
     }
 
     console.log(`Loading search with pickupLocationId: ${pickupLocationId}, dropOffLocationId: ${dropOffLocationId}`)
-    console.log('Pickup location coordinates from state:', _pickupLocationCoords)
     
     // Set search parameters
     if (_searchRadius !== undefined) {
@@ -313,46 +281,6 @@ const Search = () => {
       // Stocker les coordonnées de l'emplacement de prise en charge
       if (_pickupLocationCoords) {
         setPickupLocationCoords(_pickupLocationCoords)
-        console.log('Using provided pickup location coordinates:', _pickupLocationCoords)
-      } else if (_pickupLocation.latitude && _pickupLocation.longitude) {
-        setPickupLocationCoords({
-          latitude: _pickupLocation.latitude,
-          longitude: _pickupLocation.longitude
-        })
-        console.log('Using pickup location coordinates from location object:', {
-          latitude: _pickupLocation.latitude,
-          longitude: _pickupLocation.longitude
-        })
-      } else if ((_pickupLocation as any).googleMapsId) {
-        // Si nous avons un ID Google Maps, essayer de géocoder l'adresse
-        console.log(`Attempting to geocode location with Google Maps ID: ${(_pickupLocation as any).googleMapsId}`)
-        try {
-          const coords = await GoogleMapsService.geocodeAddress(_pickupLocation.name || '')
-          if (coords) {
-            setPickupLocationCoords(coords)
-            console.log('Successfully geocoded location to:', coords)
-          } else {
-            console.warn(`Failed to geocode location: ${_pickupLocation.name}`)
-          }
-        } catch (error) {
-          console.error('Error geocoding location:', error)
-        }
-      } else {
-        // Si nous n'avons pas de coordonnées, essayer de géocoder l'adresse par le nom
-        console.log(`No coordinates available for pickup location, trying to geocode by name: ${_pickupLocation.name}`)
-        try {
-          if (_pickupLocation.name) {
-            const coords = await GoogleMapsService.geocodeAddress(_pickupLocation.name)
-            if (coords) {
-              setPickupLocationCoords(coords)
-              console.log('Successfully geocoded location by name to:', coords)
-            } else {
-              console.warn(`Failed to geocode location by name: ${_pickupLocation.name}`)
-            }
-          }
-        } catch (error) {
-          console.error('Error geocoding location by name:', error)
-        }
       }
 
       const payload: bookcarsTypes.GetCarsPayload = {
@@ -370,104 +298,39 @@ const Search = () => {
         days: bookcarsHelper.days(_from, _to),
       }
 
-      let sortedSuppliers: bookcarsTypes.SortedSupplier[] = []
-      let _supplierIds: string[] = []
-      
       try {
-        // Trier les fournisseurs par proximité si les coordonnées sont disponibles
-        if (pickupLocationCoords || (_pickupLocation.latitude && _pickupLocation.longitude)) {
-          const locationCoords = pickupLocationCoords || {
-            latitude: _pickupLocation.latitude!,
-            longitude: _pickupLocation.longitude!
-          }
-          
-          const locationWithCoords: bookcarsTypes.LocationWithCoordinates = {
-            _id: _pickupLocation._id,
-            name: _pickupLocation.name || '',
-            ...locationCoords
-          }
-          
-          console.log('Sorting suppliers by distance from location:', locationWithCoords)
-          
-          try {
-            sortedSuppliers = await GoogleMapsService.getSortedSuppliersByDistance(locationWithCoords, payload)
-            
-            // Afficher les distances pour le débogage
-            sortedSuppliers.forEach(supplier => {
-              console.log(`Supplier ${supplier.fullName}: ${supplier.distance.toFixed(2)} km`)
-            })
-          } catch (error) {
-            console.error('Error sorting suppliers by distance:', error)
-            try {
-              const _suppliers = await SupplierService.getFrontendSuppliers(payload)
-              const suppliersWithDistance = _suppliers.map(supplier => ({
-                ...supplier,
-                distance: 0
-              })) as bookcarsTypes.SortedSupplier[]
-              sortedSuppliers = suppliersWithDistance
-            } catch (supplierError) {
-              console.error('Error fetching frontend suppliers:', supplierError)
-              // Utiliser tous les fournisseurs disponibles comme fallback
-              if (allSuppliers.length > 0) {
-                sortedSuppliers = allSuppliers.map(supplier => ({
-                  ...supplier,
-                  distance: 0
-                })) as bookcarsTypes.SortedSupplier[]
-              }
-            }
-          }
-        } else {
-          try {
-            const _suppliers = await SupplierService.getFrontendSuppliers(payload)
-            const suppliersWithDistance = _suppliers.map(supplier => ({
-              ...supplier,
-              distance: 0
-            })) as bookcarsTypes.SortedSupplier[]
-            sortedSuppliers = suppliersWithDistance
-          } catch (error) {
-            console.error('Error fetching frontend suppliers:', error)
-            // Utiliser tous les fournisseurs disponibles comme fallback
-            if (allSuppliers.length > 0) {
-              sortedSuppliers = allSuppliers.map(supplier => ({
-                ...supplier,
-                distance: 0
-              })) as bookcarsTypes.SortedSupplier[]
-            }
-          }
+        const _suppliers = await SupplierService.getFrontendSuppliers(payload)
+        const _supplierIds = bookcarsHelper.flattenSuppliers(_suppliers)
+
+        setPickupLocation(_pickupLocation)
+        setDropOffLocation(_dropOffLocation)
+        setFrom(_from)
+        setTo(_to)
+        setSuppliers(_suppliers)
+        setSupplierIds(_supplierIds)
+
+        const { ranges: _ranges } = state
+        if (_ranges) {
+          setRanges(_ranges)
         }
-        
-        // Si nous avons des fournisseurs triés, utiliser leurs IDs
-        if (sortedSuppliers.length > 0) {
-          _supplierIds = bookcarsHelper.flattenSuppliers(sortedSuppliers)
-        } else if (allSuppliersIds.length > 0) {
-          // Sinon, utiliser tous les fournisseurs disponibles
-          _supplierIds = [...allSuppliersIds]
-          console.log('Using all available suppliers as fallback:', _supplierIds)
+
+        setLoading(false)
+        if (!user || (user && user.verified)) {
+          setVisible(true)
         }
       } catch (error) {
-        console.error('Error processing suppliers:', error)
-        // Utiliser tous les fournisseurs disponibles comme fallback ultime
-        if (allSuppliersIds.length > 0) {
-          _supplierIds = [...allSuppliersIds]
-          console.log('Using all available suppliers as ultimate fallback:', _supplierIds)
+        console.error('Error fetching frontend suppliers:', error)
+        // Utiliser tous les fournisseurs disponibles comme fallback
+        setPickupLocation(_pickupLocation)
+        setDropOffLocation(_dropOffLocation)
+        setFrom(_from)
+        setTo(_to)
+        setSupplierIds(allSuppliersIds)
+        
+        setLoading(false)
+        if (!user || (user && user.verified)) {
+          setVisible(true)
         }
-      }
-
-      setPickupLocation(_pickupLocation)
-      setDropOffLocation(_dropOffLocation)
-      setFrom(_from)
-      setTo(_to)
-      setSuppliers(sortedSuppliers)
-      setSupplierIds(_supplierIds)
-
-      const { ranges: _ranges } = state
-      if (_ranges) {
-        setRanges(_ranges)
-      }
-
-      setLoading(false)
-      if (!user || (user && user.verified)) {
-        setVisible(true)
       }
     } catch (err) {
       console.error('Error in onLoad:', err)
@@ -488,31 +351,22 @@ const Search = () => {
     <>
       <Layout onLoad={onLoad} strict={false}>
         {visible && supplierIds && pickupLocation && dropOffLocation && from && to && (
-          <div className="search">
-            {networkError && (
-              <Alert severity="error" className="network-error" sx={{ marginBottom: 2, width: '100%' }}>
-                {strings.NETWORK_ERROR}
-              </Alert>
-            )}
-            
+          <div className="search">          
             <div className="col-1">
               {!loading && (
                 <>
-                  {pickupLocationCoords && (
-                    <div className="map-container">
-                      <SuppliersMap
-                        title={strings.SUPPLIERS_MAP}
-                        userLocation={[pickupLocationCoords.latitude, pickupLocationCoords.longitude]}
-                        suppliers={suppliers}
-                        initialZoom={10}
-                        className="map full-height"
-                        onSelectSupplier={(locationId) => {
-                          console.log('Selected supplier location:', locationId)
-                        }}
-                      />
-                      <ViewOnMapButton onClick={() => setOpenMapDialog(true)} />
-                    </div>
-                  )}
+                  {((pickupLocation.latitude && pickupLocation.longitude)
+                    || (pickupLocation.parkingSpots && pickupLocation.parkingSpots.length > 0)) && (
+                      <Map
+                        position={[pickupLocation.latitude || 36.191113, pickupLocation.longitude || 44.009167]}
+                        initialZoom={pickupLocation.latitude && pickupLocation.longitude ? 10 : 2.5}
+                        locations={[pickupLocation]}
+                        parkingSpots={pickupLocation.parkingSpots}
+                        className="map"
+                      >
+                        <ViewOnMapButton onClick={() => setOpenMapDialog(true)} />
+                      </Map>
+                    )}
 
                   <CarFilter
                     className="filter"
@@ -538,8 +392,8 @@ const Search = () => {
 
                   {
                     showFilters && (
-                      <div className="filters-container">
-                        {!env.HIDE_SUPPLIERS && <SupplierFilter className="filter" suppliers={suppliers} onChange={handleSupplierFilterChange} />}
+                      <>
+                        <SupplierFilter className="filter" suppliers={suppliers} onChange={handleSupplierFilterChange} />
                         <CarRatingFilter className="filter" onChange={handleRatingFilterChange} />
                         <CarRangeFilter className="filter" onChange={handleRangeFilterChange} />
                         <CarMultimediaFilter className="filter" onChange={handleMultimediaFilterChange} />
@@ -550,19 +404,13 @@ const Search = () => {
                         <MileageFilter className="filter" onChange={handleMileageFilterChange} />
                         <FuelPolicyFilter className="filter" onChange={handleFuelPolicyFilterChange} />
                         <DepositFilter className="filter" onChange={handleDepositFilterChange} />
-                      </div>
+                      </>
                     )
                   }
                 </>
               )}
             </div>
             <div className="col-2">
-              {pickupLocation.name && searchRadius && searchRadius > 0 && !exactLocationOnly && (
-                <Alert severity="info" className="search-radius-info">
-                  {`${strings.SEARCHING_WITHIN} ${searchRadius} ${strings.KM_AROUND} ${pickupLocation.name}`}
-                </Alert>
-              )}
-              
               <CarList
                 carSpecs={carSpecs}
                 suppliers={supplierIds || []}
@@ -583,12 +431,6 @@ const Search = () => {
                 seats={seats}
                 searchRadius={searchRadius}
                 exactLocationOnly={exactLocationOnly}
-                supplierDistances={suppliers.reduce((acc, supplier) => {
-                  if (supplier.distance !== undefined && supplier._id) {
-                    acc[supplier._id.toString()] = supplier.distance
-                  }
-                  return acc
-                }, {} as Record<string, number>)}
                 hideSupplier={env.HIDE_SUPPLIERS}
                 includeComingSoonCars
               />

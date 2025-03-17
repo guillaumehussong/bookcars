@@ -58,7 +58,6 @@
 /* Style pour les conteneurs de voitures */
 .car-container {
   width: 100%;
-  margin-bottom: 20px;
 }
 
 /* Style pour la pagination */
@@ -98,8 +97,5 @@
     font-size: 14px;
   }
   
-  .car-container {
-    margin-bottom: 15px;
-  }
 }
 

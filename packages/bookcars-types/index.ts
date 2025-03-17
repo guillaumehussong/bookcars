@@ -628,3 +628,32 @@ export interface CarOptions {
   fullInsurance?: boolean
   additionalDriver?: boolean
 }
+
+/**
+ * Review status.
+ */
+export enum ReviewStatus {
+  Pending = 'Pending',
+  Approved = 'Approved',
+  Rejected = 'Rejected',
+}
+
+/**
+ * Review object.
+ */
+export interface Review {
+  _id?: string
+  user: User | string
+  booking: Booking | string
+  car: Car | string
+  supplier: User | string
+  rating: number
+  comment?: string
+  status: string
+  reply?: {
+    comment: string
+    date: Date
+  }
+  createdAt?: Date
+  updatedAt?: Date
+}

@@ -1,0 +1,16 @@
+.reviews-dialog .review-item {
+  padding: 16px 0;
+}
+
+.reviews-dialog .review-item:first-child {
+  padding-top: 0;
+}
+
+.reviews-dialog .review-avatar {
+  width: 50px;
+  height: 50px;
+}
+
+.reviews-dialog .MuiDialogContent-root {
+  padding: 20px;
+} 

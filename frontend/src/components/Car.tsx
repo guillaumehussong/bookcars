@@ -28,6 +28,7 @@ import { strings } from '@/lang/cars'
 import Badge from '@/components/Badge'
 import * as UserService from '@/services/UserService'
 import * as PaymentService from '@/services/PaymentService'
+import ReviewsDialog from './ReviewsDialog'
 
 import DoorsIcon from '@/assets/img/car-door.png'
 import DistanceIcon from '@/assets/img/distance-icon.png'
@@ -59,8 +60,6 @@ const Car = ({
   dropOffLocation,
   from,
   to,
-  pickupLocationName,
-  distance,
   hideSupplier,
   sizeAuto,
   hidePrice,
@@ -77,6 +76,8 @@ const Car = ({
   const [fullInsurance, setFullInsurance] = useState('')
   const [additionalDriver, setAdditionalDriver] = useState('')
   const [loading, setLoading] = useState(true)
+  const [openReviewsDialog, setOpenReviewsDialog] = useState<boolean>(false)
+  const [reviewType, setReviewType] = useState<'car' | 'supplier'>('car')
 
   useEffect(() => {
     setLanguage(UserService.getLanguage())
@@ -150,34 +151,38 @@ const Car = ({
         : <InfoIcon className="extra-info" />
   }
 
+  const handleRatingClick = () => {
+    if (car.rating && car.rating >= 1) {
+      setReviewType('car')
+      setOpenReviewsDialog(true)
+    }
+  }
+
+  const handleSupplierClick = () => {
+    if (car.supplier && typeof car.supplier === 'object') {
+      setReviewType('supplier')
+      setOpenReviewsDialog(true)
+    }
+  }
+
   if (loading || !language || (!hidePrice && (!days || !totalPrice))) {
     return null
   }
 
   const fr = language === 'fr'
-  const distanceStr = distance ? `${distance} ${strings.FROM_YOU}` : '';
 
   return (
     <div key={car._id} className="car-container">
-      {pickupLocationName && (
-        <div className="car-header">
-          <div className="location">
-            <LocationIcon />
-            <span className="location-name">{pickupLocationName}</span>
-          </div>
-          {distance !== undefined && (
-            <div className="distance">
-              <img alt="Distance" src={DistanceIcon} />
-              <Badge backgroundColor="#D8EDF9" color="#000" text={`${distance} ${strings.FROM_YOU}`} />
-            </div>
-          )}
-        </div>
-      )}
       <article>
         <div className="car">
           <img src={bookcarsHelper.joinURL(env.CDN_CARS, car.image)} alt={car.name} className="car-img" />
           {!hideSupplier && car.supplier && (
-            <div className="car-supplier" style={sizeAuto ? { bottom: 10 } : {}} title={car.supplier.fullName}>
+            <div 
+              className="car-supplier" 
+              style={sizeAuto ? { bottom: 10, cursor: 'pointer' } : { cursor: 'pointer' }} 
+              title={car.supplier.fullName}
+              onClick={handleSupplierClick}
+            >
               <span className="car-supplier-logo">
                 <img src={bookcarsHelper.joinURL(env.CDN_USERS, car.supplier.avatar)} alt={car.supplier.fullName} />
               </span>
@@ -185,7 +190,7 @@ const Car = ({
             </div>
           )}
           <div className="car-footer">
-            <div className="rating">
+            <div className="rating" onClick={handleRatingClick} style={{ cursor: car.rating && car.rating >= 1 ? 'pointer' : 'default' }}>
               {car.rating !== undefined && car.rating >= 1 && (
                 <>
                   <span className="value">{car.rating.toFixed(2)}</span>
@@ -401,6 +406,13 @@ const Car = ({
           )}
         </div>
       </article>
+      
+      <ReviewsDialog
+        open={openReviewsDialog}
+        onClose={() => setOpenReviewsDialog(false)}
+        carId={reviewType === 'car' ? car._id : undefined}
+        supplierId={reviewType === 'supplier' && car.supplier && typeof car.supplier === 'object' ? car.supplier._id : undefined}
+      />
     </div>
   )
 }

@@ -23,7 +23,8 @@ import {
 } from '@mui/material'
 import {
   Visibility as ViewIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Star as StarIcon
 } from '@mui/icons-material'
 import { format } from 'date-fns'
 import { fr as dfnsFR, enUS as dfnsENUS } from 'date-fns/locale'
@@ -31,12 +32,15 @@ import * as bookcarsTypes from ':bookcars-types'
 import * as bookcarsHelper from ':bookcars-helper'
 import * as BookingService from '@/services/BookingService'
 import * as PaymentService from '@/services/PaymentService'
+import * as ReviewService from '@/services/ReviewService'
 import * as helper from '@/common/helper'
 import { strings } from '@/lang/booking-list'
 import { strings as commonStrings } from '@/lang/common'
+import { strings as reviewStrings } from '@/lang/reviews'
 import env from '@/config/env.config'
 import BookingStatus from '@/components/BookingStatus'
 import Extras from '@/components/Extras'
+import ReviewDialog from '@/components/ReviewDialog'
 
 import '@/assets/css/booking-list.css'
 
@@ -92,6 +96,9 @@ const BookingList = ({
   const [openCancelDialog, setOpenCancelDialog] = useState(false)
   const [cancelRequestSent, setCancelRequestSent] = useState(false)
   const [cancelRequestProcessing, setCancelRequestProcessing] = useState(false)
+  const [openReviewDialog, setOpenReviewDialog] = useState(false)
+  const [selectedBooking, setSelectedBooking] = useState<bookcarsTypes.Booking | null>(null)
+  const [reviewChecking, setReviewChecking] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (!env.isMobile) {
@@ -304,6 +311,81 @@ const BookingList = ({
       })
     }
 
+    // Add review button to actions for completed bookings
+    if (!columns.find(column => column.field === 'actions')) {
+      columns.push({
+        field: 'actions',
+        headerName: '',
+        sortable: false,
+        width: 120,
+        renderCell: (params: GridRenderCellParams<bookcarsTypes.Booking>) => {
+          const booking = params.row
+          const cancelBooking = (e: React.MouseEvent<HTMLElement>) => {
+            e.stopPropagation()
+            setSelectedId(params.row._id as string)
+            setOpenCancelDialog(true)
+          }
+
+          const viewBooking = (e: React.MouseEvent<HTMLElement>) => {
+            e.stopPropagation()
+            navigate(`/booking?b=${params.row._id}`)
+          }
+
+          const reviewBooking = (e: React.MouseEvent<HTMLElement>) => {
+            e.stopPropagation()
+            handleReview(params.row)
+          }
+
+          const isCompletedBooking = booking.status === bookcarsTypes.BookingStatus.Paid && new Date(booking.to) < new Date()
+          
+          return (
+            <div>
+              <Tooltip title={commonStrings.VIEW}>
+                <IconButton
+                  aria-label={commonStrings.VIEW}
+                  color="inherit"
+                  size="small"
+                  onClick={viewBooking}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <ViewIcon />
+                </IconButton>
+              </Tooltip>
+              {booking.cancellation && booking.status !== bookcarsTypes.BookingStatus.Cancelled
+                && ((env.APP_TYPE === bookcarsTypes.AppType.Backend && user?.type === bookcarsTypes.UserType.Admin)
+                  || (env.APP_TYPE === bookcarsTypes.AppType.Frontend && user?._id && booking.driver && typeof booking.driver === 'object' && user._id === booking.driver._id)) && (
+                  <Tooltip title={commonStrings.CANCEL}>
+                    <IconButton
+                      aria-label={commonStrings.CANCEL}
+                      color="inherit"
+                      size="small"
+                      onClick={cancelBooking}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <CancelIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              {isCompletedBooking && env.APP_TYPE === bookcarsTypes.AppType.Frontend && (
+                <Tooltip title={reviewStrings.WRITE_REVIEW}>
+                  <IconButton
+                    aria-label={reviewStrings.WRITE_REVIEW}
+                    color="primary"
+                    size="small"
+                    onClick={reviewBooking}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    disabled={reviewChecking[booking._id as string]}
+                  >
+                    {reviewChecking[booking._id as string] ? <CircularProgress size={20} /> : <StarIcon />}
+                  </IconButton>
+                </Tooltip>
+              )}
+            </div>
+          )
+        },
+      })
+    }
+
     return _columns
   }
 
@@ -375,6 +457,33 @@ const BookingList = ({
       setOpenCancelDialog(false)
       setCancelRequestProcessing(false)
     }
+  }
+
+  const handleReview = async (booking: bookcarsTypes.Booking) => {
+    try {
+      setReviewChecking({ ...reviewChecking, [booking._id as string]: true })
+      const result = await ReviewService.checkBookingReview(booking._id as string)
+      setReviewChecking({ ...reviewChecking, [booking._id as string]: false })
+      
+      if (result.exists) {
+        helper.info(reviewStrings.ALREADY_REVIEWED)
+        return
+      }
+      
+      setSelectedBooking(booking)
+      setOpenReviewDialog(true)
+    } catch (err) {
+      helper.error(err)
+    }
+  }
+
+  const handleCloseReviewDialog = () => {
+    setOpenReviewDialog(false)
+    setSelectedBooking(null)
+  }
+
+  const handleReviewSuccess = () => {
+    helper.info(reviewStrings.REVIEW_SUCCESS)
   }
 
   const _fr = language === 'fr'
@@ -525,6 +634,15 @@ const BookingList = ({
           )}
         </DialogActions>
       </Dialog>
+      
+      {selectedBooking && (
+        <ReviewDialog
+          open={openReviewDialog}
+          onClose={handleCloseReviewDialog}
+          booking={selectedBooking}
+          onSubmitSuccess={handleReviewSuccess}
+        />
+      )}
     </div>
   )
 }

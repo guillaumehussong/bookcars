@@ -261,17 +261,6 @@ const CarList = ({
 
   return (
     <div className={`car-list-container${className ? ` ${className}` : ''}`}>
-      {networkError && (
-        <Alert severity="error" className="network-error">
-          {strings.NETWORK_ERROR}
-        </Alert>
-      )}
-
-      {pickupLocationName && searchRadius && searchRadius > 0 && !exactLocationOnly && (
-        <Alert severity="info" className="search-radius-info">
-          {`${strings.SEARCHING_WITHIN} ${searchRadius} ${strings.KM_AROUND} ${pickupLocationName}`}
-        </Alert>
-      )}
 
       {(loading || init || carListLoading) && (
         <div className="car-list-progress">

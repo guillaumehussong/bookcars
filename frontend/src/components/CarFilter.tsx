@@ -192,113 +192,118 @@ const CarFilter = ({
     onSubmit(filter)
   }
 
-  const dropOffForm = (
-    <FormControl className="drop-off-location">
-      <GoogleMapsLocationField
-        label={commonStrings.DROP_OFF_LOCATION}
-        value={dropOffLocation as bookcarsTypes.LocationWithCoordinates | null}
-        onChange={handleDropOffLocationChange}
-        required
-        variant="outlined"
-      />
-    </FormControl>
-  )
-
   const filterContent = (
     <form onSubmit={handleSubmit}>
-      <div className="filter-container">
-        <div className="filter-row pickup-location">
+      <div className="pickup-location">
+        <FormControl>
+          <GoogleMapsLocationField
+            label={commonStrings.PICK_UP_LOCATION}
+            value={pickupLocation as bookcarsTypes.LocationWithCoordinates | null}
+            onChange={handlePickupLocationChange}
+            required
+            variant="outlined"
+          />
+        </FormControl>
+      </div>
+      
+      {!sameLocation && (
+        <div className="drop-off-location">
           <FormControl>
             <GoogleMapsLocationField
-              label={commonStrings.PICK_UP_LOCATION}
-              value={pickupLocation as bookcarsTypes.LocationWithCoordinates | null}
-              onChange={handlePickupLocationChange}
+              label={commonStrings.DROP_OFF_LOCATION}
+              value={dropOffLocation as bookcarsTypes.LocationWithCoordinates | null}
+              onChange={handleDropOffLocationChange}
               required
               variant="outlined"
             />
-          </FormControl>
-          <FormControl>
-            <DateTimePicker
-              label={strings.PICK_UP_DATE}
-              value={from}
-              minDate={_minDate}
-              onChange={(date) => {
-                if (date) {
-                  setFrom(date)
-                  setFromError(false)
-                } else {
-                  setFrom(undefined)
-                }
-              }}
-              onError={(err: DateTimeValidationError) => {
-                if (err) {
-                  setFromError(true)
-                } else {
-                  setFromError(false)
-                }
-              }}
-              language={UserService.getLanguage()}
-              required
-              variant="outlined"
-            />
-            <FormHelperText error={minPickupHoursError}>{(minPickupHoursError && strings.MIN_PICK_UP_HOURS_ERROR) || ''}</FormHelperText>
           </FormControl>
         </div>
-        <div className="filter-row">
-          <FormControlLabel
-            className="checkboxLabel"
-            control={<Checkbox checked={sameLocation} onChange={handleSameLocationChange} />}
-            label={strings.DROP_OFF}
+      )}
+      
+      <div className="pick-up-date">
+        <FormControl>
+          <DateTimePicker
+            label={strings.PICK_UP_DATE}
+            value={from}
+            minDate={_minDate}
+            onChange={(date) => {
+              if (date) {
+                setFrom(date)
+                setFromError(false)
+              } else {
+                setFrom(undefined)
+              }
+            }}
+            onError={(err: DateTimeValidationError) => {
+              if (err) {
+                setFromError(true)
+              } else {
+                setFromError(false)
+              }
+            }}
+            language={UserService.getLanguage()}
+            required
+            variant="outlined"
           />
-          {!sameLocation && dropOffForm}
-          <FormControl className="datetime">
-            <DateTimePicker
-              label={strings.DROP_OFF_DATE}
-              value={to}
-              minDate={minDate}
-              onChange={(date) => {
-                if (date) {
-                  setTo(date)
-                  setToError(false)
-                } else {
-                  setTo(undefined)
-                }
-              }}
-              onError={(err: DateTimeValidationError) => {
-                if (err) {
-                  setToError(true)
-                } else {
-                  setToError(false)
-                }
-              }}
-              language={UserService.getLanguage()}
-              required
-              variant="outlined"
-            />
-            <FormHelperText error={minRentalHoursError}>{(minRentalHoursError && strings.MIN_RENTAL_HOURS_ERROR) || ''}</FormHelperText>
-          </FormControl>
-          <div className="action">
-            <Button
-              type="submit"
-              variant="contained"
-              className="btn-search"
-              size="small"
-              disableElevation
-            >
-              {commonStrings.SEARCH}
-            </Button>
-          </div>
-        </div>
+          <FormHelperText error={minPickupHoursError}>{(minPickupHoursError && strings.MIN_PICK_UP_HOURS_ERROR) || ''}</FormHelperText>
+        </FormControl>
       </div>
+      
+      <div className="drop-off-date">
+        <FormControl>
+          <DateTimePicker
+            label={strings.DROP_OFF_DATE}
+            value={to}
+            minDate={minDate}
+            onChange={(date) => {
+              if (date) {
+                setTo(date)
+                setToError(false)
+              } else {
+                setTo(undefined)
+              }
+            }}
+            onError={(err: DateTimeValidationError) => {
+              if (err) {
+                setToError(true)
+              } else {
+                setToError(false)
+              }
+            }}
+            language={UserService.getLanguage()}
+            required
+            variant="outlined"
+          />
+          <FormHelperText error={minRentalHoursError}>{(minRentalHoursError && strings.MIN_RENTAL_HOURS_ERROR) || ''}</FormHelperText>
+        </FormControl>
+      </div>
+      
+      <div className="same-location-checkbox">
+        <FormControlLabel
+          className="checkboxLabel"
+          control={<Checkbox checked={sameLocation} onChange={handleSameLocationChange} />}
+          label="Return to same location"
+        />
+      </div>
+      
+      <Button
+        type="submit"
+        variant="contained"
+        className="search-button"
+        disableElevation
+        fullWidth
+      >
+        SEARCH
+      </Button>
     </form>
   )
 
   return collapse ? (
-    <Accordion title={strings.SEARCH_FORM} className={className} offsetHeight={accordionHeight}>
+    <Accordion title={commonStrings.LOCATION_TERM} collapse={collapse} className={`${className ? `${className} ` : ''}car-filter`} offsetHeight={accordionHeight}>
       {filterContent}
     </Accordion>
   ) : (
-    <div className={className}>{filterContent}</div>
+    <div className={`${className ? `${className} ` : ''}filter car-filter`}>{filterContent}</div>
   )
 }
 

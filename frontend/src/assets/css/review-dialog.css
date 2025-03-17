@@ -1,0 +1,15 @@
+.review-dialog .rating-container {
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.review-dialog .error-message {
+  margin-top: 15px;
+}
+
+.review-dialog .MuiRating-root {
+  margin-top: 10px;
+  font-size: 2rem;
+} 
