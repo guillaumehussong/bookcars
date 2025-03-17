@@ -166,7 +166,9 @@ export const getSortedSuppliersByDistance = async (
           } as bookcarsTypes.SortedSupplier;
         } catch (error) {
           // Gérer les erreurs d'authentification ou autres erreurs
-          if (error.response && error.response.status === 403) {
+          if (error && typeof error === 'object' && 'response' in error && 
+              error.response && typeof error.response === 'object' && 
+              'status' in error.response && error.response.status === 403) {
             console.log(`Authentication required to get supplier ${supplier._id}. Using default coordinates.`);
           } else {
             console.error(`Error processing supplier ${supplier._id}:`, error);
