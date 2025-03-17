@@ -64,7 +64,7 @@ import Backdrop from '@/components/SimpleBackdrop'
 import '@/assets/css/checkout.css'
 
 //
-// Make sure to call `loadStripe` outside of a component’s render to avoid
+// Make sure to call `loadStripe` outside of a component's render to avoid
 // recreating the `Stripe` object on every render.
 //
 const stripePromise = env.PAYMENT_GATEWAY === bookcarsTypes.PaymentGateway.Stripe ? loadStripe(env.STRIPE_PUBLISHABLE_KEY) : null
@@ -346,7 +346,7 @@ const Checkout = () => {
         }
       }
 
-      if (car.supplier.licenseRequired && !license) {
+      if (car.supplier?.licenseRequired && !license) {
         setLicenseRequired(true)
         return
       }
@@ -371,7 +371,7 @@ const Checkout = () => {
       const basePrice = await bookcarsHelper.convertPrice(price, PaymentService.getCurrency(), env.BASE_CURRENCY)
 
       const booking: bookcarsTypes.Booking = {
-        supplier: car.supplier._id as string,
+        supplier: car.supplier?._id as string,
         car: car._id,
         driver: authenticated ? user?._id : undefined,
         pickupLocation: pickupLocation._id,
@@ -624,8 +624,8 @@ const Checkout = () => {
                             <span className="checkout-detail-title">{commonStrings.SUPPLIER}</span>
                             <div className="checkout-detail-value">
                               <div className="car-supplier">
-                                <img src={bookcarsHelper.joinURL(env.CDN_USERS, car.supplier.avatar)} alt={car.supplier.fullName} style={{ height: env.SUPPLIER_IMAGE_HEIGHT }} />
-                                <span className="car-supplier-name">{car.supplier.fullName}</span>
+                                <img src={bookcarsHelper.joinURL(env.CDN_USERS, car.supplier?.avatar)} alt={car.supplier?.fullName} style={{ height: env.SUPPLIER_IMAGE_HEIGHT }} />
+                                <span className="car-supplier-name">{car.supplier?.fullName}</span>
                               </div>
                             </div>
                           </div>
@@ -720,7 +720,7 @@ const Checkout = () => {
                       </div>
                     )}
 
-                    {car.supplier.licenseRequired && (
+                    {car.supplier?.licenseRequired && (
                       <div className="driver-details">
                         <div className="checkout-info">
                           <LicenseIcon />
@@ -829,7 +829,7 @@ const Checkout = () => {
                       </div>
                     )}
 
-                    {car.supplier.payLater && (
+                    {car.supplier?.payLater && (
                       <div className="payment-options-container">
                         <div className="checkout-info">
                           <PaymentOptionsIcon />
@@ -924,7 +924,7 @@ const Checkout = () => {
                       </div>
                     </div>
 
-                    {(!car.supplier.payLater || !payLater) && (
+                    {(!car.supplier?.payLater || !payLater) && (
                       env.PAYMENT_GATEWAY === bookcarsTypes.PaymentGateway.Stripe
                         ? (
                           clientSecret && (

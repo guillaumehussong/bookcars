@@ -12,6 +12,7 @@ import * as env from '../config/env.config'
 import * as helper from '../common/helper'
 import * as logger from '../common/logger'
 import DateBasedPrice from '../models/DateBasedPrice'
+import Location from '../models/Location'
 
 /**
  * Create a Car.
@@ -701,8 +702,48 @@ export const getFrontendCars = async (req: Request, res: Response) => {
     const { body }: { body: bookcarsTypes.GetCarsPayload } = req
     const page = Number.parseInt(req.params.page, 10)
     const size = Number.parseInt(req.params.size, 10)
-    const suppliers = body.suppliers!.map((id) => new mongoose.Types.ObjectId(id))
-    const pickupLocation = new mongoose.Types.ObjectId(body.pickupLocation)
+    const suppliers = body.suppliers && body.suppliers.length > 0 
+      ? body.suppliers.map((id) => new mongoose.Types.ObjectId(id))
+      : []
+    
+    // Coordonnées de recherche - priorité aux coordonnées directes
+    let searchCoordinates = null
+    let pickupLocation = null
+
+    // Si des coordonnées directes sont fournies, les utiliser
+    if (body.pickupCoordinates && body.pickupCoordinates.latitude && body.pickupCoordinates.longitude) {
+      searchCoordinates = {
+        latitude: body.pickupCoordinates.latitude,
+        longitude: body.pickupCoordinates.longitude
+      }
+      logger.info(`[car.getFrontendCars] Using provided coordinates: ${JSON.stringify(searchCoordinates)}`)
+    } 
+    // Sinon, essayer de récupérer l'emplacement par ID
+    else if (body.pickupLocation) {
+      try {
+        pickupLocation = new mongoose.Types.ObjectId(body.pickupLocation)
+        // Récupérer les coordonnées de l'emplacement
+        const selectedLocation = await Location.findById(pickupLocation).lean()
+        if (selectedLocation && selectedLocation.latitude && selectedLocation.longitude) {
+          searchCoordinates = {
+            latitude: selectedLocation.latitude,
+            longitude: selectedLocation.longitude
+          }
+          logger.info(`[car.getFrontendCars] Using location coordinates: ${JSON.stringify(searchCoordinates)}`)
+        } else {
+          logger.info(`[car.getFrontendCars] Location found but no coordinates available: ${pickupLocation}`)
+        }
+      } catch (err) {
+        logger.info(`[car.getFrontendCars] Invalid pickup location ID: ${body.pickupLocation}`)
+      }
+    }
+
+    // Si aucune coordonnée n'est disponible, retourner un résultat vide
+    if (!searchCoordinates && !pickupLocation) {
+      logger.info(`[car.getFrontendCars] No valid coordinates or location provided`)
+      return res.json([{ resultData: [], pageInfo: [{ totalRecords: 0 }] }])
+    }
+    
     const {
       carType,
       gearbox,
@@ -717,17 +758,43 @@ export const getFrontendCars = async (req: Request, res: Response) => {
       days,
       includeAlreadyBookedCars,
       includeComingSoonCars,
+      searchRadius = 10, // Default search radius: 10km
+      exactLocationOnly = false, // Default: include nearby locations
     } = body
+
+    // Log search parameters
+    logger.info(`[car.getFrontendCars] Search parameters: 
+      suppliers: ${JSON.stringify(suppliers)}, 
+      coordinates: ${JSON.stringify(searchCoordinates)},
+      pickupLocation: ${pickupLocation}, 
+      carType: ${JSON.stringify(carType)}, 
+      gearbox: ${JSON.stringify(gearbox)},
+      searchRadius: ${searchRadius},
+      exactLocationOnly: ${exactLocationOnly}
+    `)
 
     const $match: mongoose.FilterQuery<bookcarsTypes.Car> = {
       $and: [
-        { supplier: { $in: suppliers } },
-        { locations: pickupLocation },
         { type: { $in: carType } },
         { gearbox: { $in: gearbox } },
         { available: true },
       ],
     }
+
+    // Ajouter le filtre de fournisseur seulement si des fournisseurs sont spécifiés
+    if (suppliers.length > 0) {
+      $match.$and!.push({ supplier: { $in: suppliers } })
+    } else {
+      logger.info(`[car.getFrontendCars] No suppliers specified, showing cars from all suppliers`)
+    }
+
+    // Si exactLocationOnly est true et que nous avons un ID d'emplacement, filtrer par cet emplacement
+    if (exactLocationOnly && pickupLocation) {
+      $match.$and!.push({ locations: pickupLocation })
+    }
+
+    // Log the match query
+    logger.info(`[car.getFrontendCars] Match query: ${JSON.stringify($match)}`)
 
     if (!includeAlreadyBookedCars) {
       $match.$and!.push({ $or: [{ fullyBooked: false }, { fullyBooked: null }] })
@@ -796,8 +863,75 @@ export const getFrontendCars = async (req: Request, res: Response) => {
       $supplierMatch = { $or: [{ 'supplier.minimumRentalDays': { $lte: days } }, { 'supplier.minimumRentalDays': null }] }
     }
 
-    const data = await Car.aggregate(
-      [
+    // Si nous n'avons pas de coordonnées de recherche ou si exactLocationOnly est true et que nous avons un ID d'emplacement,
+    // utiliser la requête originale
+    if (!searchCoordinates || (exactLocationOnly && pickupLocation)) {
+      // Original query for exact location search
+      const data = await Car.aggregate(
+        [
+          { $match },
+          {
+            $lookup: {
+              from: 'User',
+              let: { userId: '$supplier' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: { $eq: ['$_id', '$$userId'] },
+                  },
+                },
+              ],
+              as: 'supplier',
+            },
+          },
+          { $unwind: { path: '$supplier', preserveNullAndEmptyArrays: false } },
+          {
+            $match: $supplierMatch,
+          },
+          {
+            $lookup: {
+              from: 'DateBasedPrice',
+              let: { dateBasedPrices: '$dateBasedPrices' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: { $in: ['$_id', '$$dateBasedPrices'] },
+                  },
+                },
+              ],
+              as: 'dateBasedPrices',
+            },
+          },
+          {
+            $facet: {
+              resultData: [
+                {
+                  $sort: { dailyPrice: 1, _id: 1 },
+                },
+                { $skip: (page - 1) * size },
+                { $limit: size },
+              ],
+              pageInfo: [
+                {
+                  $count: 'totalRecords',
+                },
+              ],
+            },
+          },
+        ],
+        { collation: { locale: env.DEFAULT_LANGUAGE, strength: 2 } },
+      )
+
+      for (const car of data[0].resultData) {
+        const { _id, fullName, avatar } = car.supplier
+        car.supplier = { _id, fullName, avatar }
+      }
+
+      return res.json(data)
+    } else {
+      // Recherche basée sur les coordonnées GPS
+      // We need to include the locations in the result to calculate distances
+      const pipeline = [
         { $match },
         {
           $lookup: {
@@ -831,47 +965,121 @@ export const getFrontendCars = async (req: Request, res: Response) => {
             as: 'dateBasedPrices',
           },
         },
-        // {
-        //   $lookup: {
-        //     from: 'Location',
-        //     let: { locations: '$locations' },
-        //     pipeline: [
-        //       {
-        //         $match: {
-        //           $expr: { $in: ['$_id', '$$locations'] },
-        //         },
-        //       },
-        //     ],
-        //     as: 'locations',
-        //   },
-        // },
         {
-          $facet: {
-            resultData: [
+          $lookup: {
+            from: 'Location',
+            let: { locations: '$locations' },
+            pipeline: [
               {
-                // $sort: { fullyBooked: 1, comingSoon: 1, dailyPrice: 1, _id: 1 },
-                $sort: { dailyPrice: 1, _id: 1 },
-              },
-              { $skip: (page - 1) * size },
-              { $limit: size },
-            ],
-            pageInfo: [
-              {
-                $count: 'totalRecords',
+                $match: {
+                  $expr: { $in: ['$_id', '$$locations'] },
+                },
               },
             ],
+            as: 'locations',
           },
         },
-      ],
-      { collation: { locale: env.DEFAULT_LANGUAGE, strength: 2 } },
-    )
+      ]
 
-    for (const car of data[0].resultData) {
-      const { _id, fullName, avatar } = car.supplier
-      car.supplier = { _id, fullName, avatar }
+      // Get all cars without pagination to filter by distance
+      const allCars = await Car.aggregate(pipeline, { collation: { locale: env.DEFAULT_LANGUAGE, strength: 2 } })
+      
+      logger.info(`[car.getFrontendCars] Found ${allCars.length} cars before distance filtering`)
+      
+      if (allCars.length === 0) {
+        logger.info(`[car.getFrontendCars] No cars found matching the basic criteria`)
+        return res.json([{ resultData: [], pageInfo: [{ totalRecords: 0 }] }])
+      }
+
+      // Log the first car for debugging
+      if (allCars.length > 0) {
+        logger.info(`[car.getFrontendCars] First car: ${JSON.stringify({
+          _id: allCars[0]._id,
+          name: allCars[0].name,
+          supplier: allCars[0].supplier._id,
+          locations: allCars[0].locations.map((loc: bookcarsTypes.Location) => loc._id)
+        })}`)
+      }
+
+      // Filter cars by distance and add distance information
+      const carsWithDistance = []
+      
+      for (const car of allCars) {
+        // Trouver l'emplacement le plus proche
+        let minDistance = Number.MAX_VALUE
+        let closestLocation = null
+
+        if (car.locations && car.locations.length > 0) {
+          for (const loc of car.locations) {
+            if (loc.latitude && loc.longitude && searchCoordinates.latitude && searchCoordinates.longitude) {
+              const distance = helper.calculateDistance(
+                searchCoordinates.latitude,
+                searchCoordinates.longitude,
+                loc.latitude,
+                loc.longitude
+              )
+
+              if (distance < minDistance) {
+                minDistance = distance
+                closestLocation = loc
+              }
+            } else {
+              logger.info(`[car.getFrontendCars] Missing coordinates for location comparison: 
+                car location: ${JSON.stringify(loc)}, 
+                search coordinates: ${JSON.stringify(searchCoordinates)}`)
+            }
+          }
+        } else {
+          logger.info(`[car.getFrontendCars] Car has no locations: ${car._id}`)
+        }
+
+        // Toujours ajouter la voiture, quelle que soit la distance
+        if (closestLocation) {
+          // Add distance information to the car
+          car.distance = minDistance
+          car.closestLocation = closestLocation
+          carsWithDistance.push(car)
+          logger.info(`[car.getFrontendCars] Car ${car._id} (${car.name}) added with distance: ${minDistance.toFixed(2)}km`)
+        } else {
+          // Si nous n'avons pas pu calculer la distance, ajouter quand même la voiture avec une distance par défaut
+          car.distance = 999 // Distance par défaut élevée
+          car.closestLocation = car.locations && car.locations.length > 0 ? car.locations[0] : null
+          carsWithDistance.push(car)
+          logger.info(`[car.getFrontendCars] Added car ${car._id} (${car.name}) without distance calculation`)
+        }
+      }
+
+      // Vérifier si nous avons des résultats après avoir étendu la recherche
+      if (carsWithDistance.length === 0) {
+        logger.info(`[car.getFrontendCars] No cars found even after extending search radius.`)
+        return res.json([{ resultData: [], pageInfo: [{ totalRecords: 0 }] }])
+      }
+
+      // Log the number of cars found
+      logger.info(`[car.getFrontendCars] Found ${carsWithDistance.length} cars after distance filtering.`)
+
+      // Sort by distance
+      carsWithDistance.sort((a, b) => a.distance - b.distance)
+
+      // Apply pagination manually
+      const startIndex = (page - 1) * size
+      const endIndex = startIndex + size
+      const paginatedCars = carsWithDistance.slice(startIndex, endIndex)
+
+      // Format the response to match the expected structure
+      const result = [{
+        resultData: paginatedCars,
+        pageInfo: [{ totalRecords: carsWithDistance.length }]
+      }]
+
+      // Clean up supplier data
+      for (const car of result[0].resultData) {
+        const { _id, fullName, avatar } = car.supplier
+        car.supplier = { _id, fullName, avatar }
+      }
+
+      return res.json(result)
     }
-
-    return res.json(data)
   } catch (err) {
     logger.error(`[car.getFrontendCars] ${i18n.t('DB_ERROR')} ${req.query.s}`, err)
     return res.status(400).send(i18n.t('DB_ERROR') + err)

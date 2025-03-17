@@ -1,0 +1,44 @@
+.distance-badge-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.distance-badge {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.distance-badge:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.distance-icon {
+  height: 20px;
+  margin-right: 5px;
+}
+
+.near-icon {
+  color: #4CAF50;
+  margin-left: 5px;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+} 

@@ -15,6 +15,7 @@ interface PagerProps {
   rowCount: number
   onNext: () => void
   onPrevious: () => void
+  className?: string
 }
 
 const Pager = ({
@@ -23,19 +24,20 @@ const Pager = ({
   totalRecords,
   rowCount,
   onNext,
-  onPrevious
+  onPrevious,
+  className
 }: PagerProps) => (
     (((page > 1 || rowCount < totalRecords) && (
-      <div className="pager-container">
+      <div className={`pager-container ${className || ''}`}>
         <div className="pager">
           <div className="row-count">{`${(page - 1) * pageSize + 1}-${rowCount} ${commonStrings.OF} ${totalRecords}`}</div>
 
           <div className="actions">
-            <IconButton onClick={onPrevious} disabled={page === 1}>
+            <IconButton onClick={onPrevious} disabled={page === 1} title={commonStrings.PREVIOUS}>
               <PreviousPageIcon className="icon" />
             </IconButton>
 
-            <IconButton onClick={onNext} disabled={rowCount >= totalRecords}>
+            <IconButton onClick={onNext} disabled={rowCount >= totalRecords} title={commonStrings.NEXT}>
               <NextPageIcon className="icon" />
             </IconButton>
           </div>

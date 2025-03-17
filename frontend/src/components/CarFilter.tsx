@@ -13,11 +13,12 @@ import env from '@/config/env.config'
 import { strings as commonStrings } from '@/lang/common'
 import { strings } from '@/lang/search-form'
 import * as UserService from '@/services/UserService'
-import LocationSelectList from './LocationSelectList'
+import GoogleMapsLocationField from './GoogleMapsLocationField'
 import DateTimePicker from './DateTimePicker'
 import Accordion from './Accordion'
 
 import '@/assets/css/car-filter.css'
+import '../types/additional-types' // Importer les types additionnels
 
 interface CarFilterProps {
   from: Date
@@ -46,80 +47,105 @@ const CarFilter = ({
   const [from, setFrom] = useState<Date | undefined>(filterFrom)
   const [to, setTo] = useState<Date | undefined>(filterTo)
   const [minDate, setMinDate] = useState<Date>()
-  const [pickupLocation, setPickupLocation] = useState<bookcarsTypes.Location | null | undefined>(filterPickupLocation)
-  const [dropOffLocation, setDropOffLocation] = useState<bookcarsTypes.Location | null | undefined>(filterDropOffLocation)
-  const [sameLocation, setSameLocation] = useState(filterPickupLocation === filterDropOffLocation)
+  const [pickupLocation, setPickupLocation] = useState<bookcarsTypes.LocationWithCoordinates | null | undefined>(
+    filterPickupLocation && filterPickupLocation.latitude && filterPickupLocation.longitude
+      ? {
+          ...filterPickupLocation,
+          latitude: filterPickupLocation.latitude,
+          longitude: filterPickupLocation.longitude
+        } as bookcarsTypes.LocationWithCoordinates
+      : undefined
+  )
+  const [dropOffLocation, setDropOffLocation] = useState<bookcarsTypes.LocationWithCoordinates | null | undefined>(
+    filterDropOffLocation && filterDropOffLocation.latitude && filterDropOffLocation.longitude
+      ? {
+          ...filterDropOffLocation,
+          latitude: filterDropOffLocation.latitude,
+          longitude: filterDropOffLocation.longitude
+        } as bookcarsTypes.LocationWithCoordinates
+      : undefined
+  )
+  const [sameLocation, setSameLocation] = useState(true)
   const [fromError, setFromError] = useState(false)
   const [toError, setToError] = useState(false)
-  const [offsetHeight, setOffsetHeight] = useState(OFFSET_HEIGHT)
   const [minPickupHoursError, setMinPickupHoursError] = useState(false)
   const [minRentalHoursError, setMinRentalHoursError] = useState(false)
+  const [accordionHeight, setAccordionHeight] = useState(0)
 
   useEffect(() => {
-    if (filterFrom) {
-      let __minDate = new Date(filterFrom)
-      __minDate = addHours(__minDate, env.MIN_RENTAL_HOURS)
-      setMinDate(__minDate)
-    }
-  }, [filterFrom])
+    setAccordionHeight(collapse ? 0 : OFFSET_HEIGHT)
+  }, [collapse])
 
   useEffect(() => {
-    if (from) {
-      let __minDate = new Date(from)
-      __minDate = addHours(__minDate, env.MIN_RENTAL_HOURS)
-      setMinDate(__minDate)
-
-      if (from.getTime() - Date.now() < env.MIN_PICK_UP_HOURS * 60 * 60 * 1000) {
-        setMinPickupHoursError(true)
-      } else {
-        setMinPickupHoursError(false)
-      }
-    }
-
-    if (from && to) {
-      if (from.getTime() > to.getTime()) {
-        const _to = new Date(from)
-        if (env.MIN_RENTAL_HOURS < 24) {
-          _to.setDate(_to.getDate() + 1)
-        } else {
-          _to.setDate(_to.getDate() + Math.ceil(env.MIN_RENTAL_HOURS / 24) + 1)
-        }
-        setTo(_to)
-      } else if (to.getTime() - from.getTime() < env.MIN_RENTAL_HOURS * 60 * 60 * 1000) {
-        setMinRentalHoursError(true)
-      } else {
-        setMinRentalHoursError(false)
-      }
-    }
-  }, [from, to])
-
-  useEffect(() => {
-    setPickupLocation(filterPickupLocation)
+    setPickupLocation(
+      filterPickupLocation && filterPickupLocation.latitude && filterPickupLocation.longitude
+        ? {
+            ...filterPickupLocation,
+            latitude: filterPickupLocation.latitude,
+            longitude: filterPickupLocation.longitude
+          } as bookcarsTypes.LocationWithCoordinates
+        : undefined
+    )
   }, [filterPickupLocation])
 
   useEffect(() => {
-    setDropOffLocation(filterDropOffLocation)
+    setDropOffLocation(
+      filterDropOffLocation && filterDropOffLocation.latitude && filterDropOffLocation.longitude
+        ? {
+            ...filterDropOffLocation,
+            latitude: filterDropOffLocation.latitude,
+            longitude: filterDropOffLocation.longitude
+          } as bookcarsTypes.LocationWithCoordinates
+        : undefined
+    )
   }, [filterDropOffLocation])
 
   useEffect(() => {
-    setSameLocation(pickupLocation?._id === dropOffLocation?._id)
-  }, [pickupLocation, dropOffLocation])
+    setFrom(filterFrom)
+  }, [filterFrom])
 
   useEffect(() => {
-    if (sameLocation) {
-      setOffsetHeight(OFFSET_HEIGHT)
-    } else {
-      setOffsetHeight((prev) => prev + 56)
+    setTo(filterTo)
+  }, [filterTo])
+
+  useEffect(() => {
+    let _minDate = new Date()
+    _minDate = addHours(_minDate, env.MIN_RENTAL_HOURS)
+    setMinDate(_minDate)
+  }, [])
+
+  useEffect(() => {
+    if (!from) {
+      return
     }
-  }, [sameLocation])
 
-  const handlePickupLocationChange = (values: bookcarsTypes.Option[]) => {
-    const _pickupLocation = (values.length > 0 && values[0]) as bookcarsTypes.Location || null
+    let __minDate = new Date(from)
+    __minDate = addHours(__minDate, env.MIN_RENTAL_HOURS)
+    setMinDate(__minDate)
 
-    setPickupLocation(_pickupLocation)
+    if (from.getTime() - Date.now() < env.MIN_PICK_UP_HOURS * 60 * 60 * 1000) {
+      setMinPickupHoursError(true)
+    } else {
+      setMinPickupHoursError(false)
+    }
 
+    if (to && from.getTime() > to.getTime()) {
+      const _to = new Date(from)
+      _to.setDate(_to.getDate() + 1)
+      setTo(_to)
+    }
+
+    if (to && to.getTime() - from.getTime() < env.MIN_RENTAL_HOURS * 60 * 60 * 1000) {
+      setMinRentalHoursError(true)
+    } else {
+      setMinRentalHoursError(false)
+    }
+  }, [from, to])
+
+  const handlePickupLocationChange = (location: bookcarsTypes.LocationWithCoordinates | null) => {
+    setPickupLocation(location)
     if (sameLocation) {
-      setDropOffLocation(_pickupLocation)
+      setDropOffLocation(location)
     }
   }
 
@@ -131,122 +157,148 @@ const CarFilter = ({
     }
   }
 
-  const handleDropOffLocationChange = (values: bookcarsTypes.Option[]) => {
-    setDropOffLocation((values.length > 0 && values[0]) as bookcarsTypes.Location || null)
+  const handleDropOffLocationChange = (location: bookcarsTypes.LocationWithCoordinates | null) => {
+    setDropOffLocation(location)
   }
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    if (!pickupLocation || !dropOffLocation || !from || !to || fromError || toError || minPickupHoursError || minRentalHoursError) {
+    if (!pickupLocation || !dropOffLocation || !from || !to || fromError || toError) {
       return
     }
 
-    if (onSubmit) {
-      const filter: bookcarsTypes.CarFilter = {
-        pickupLocation, dropOffLocation, from, to
-      }
-      onSubmit(filter)
+    const filter: bookcarsTypes.CarFilter = {
+      from,
+      to,
+      pickupLocation,
+      dropOffLocation
     }
+
+    if (pickupLocation && pickupLocation.latitude && pickupLocation.longitude) {
+      filter.pickupLocationCoords = {
+        latitude: pickupLocation.latitude,
+        longitude: pickupLocation.longitude
+      }
+    }
+
+    if (dropOffLocation && dropOffLocation.latitude && dropOffLocation.longitude) {
+      filter.dropOffLocationCoords = {
+        latitude: dropOffLocation.latitude,
+        longitude: dropOffLocation.longitude
+      }
+    }
+
+    onSubmit(filter)
   }
 
-  return (
-    <Accordion
-      title={commonStrings.LOCATION_TERM}
-      collapse={collapse}
-      offsetHeight={offsetHeight}
-      className={`${className ? `${className} ` : ''}car-filter`}
-    >
-      <form onSubmit={handleSubmit}>
-        <FormControl fullWidth className="pickup-location">
-          <LocationSelectList
-            label={commonStrings.PICK_UP_LOCATION}
-            hidePopupIcon
-            customOpen={env.isMobile}
-            init={!env.isMobile}
-            required
-            variant="standard"
-            value={pickupLocation as bookcarsTypes.Location}
-            onChange={handlePickupLocationChange}
-          />
-        </FormControl>
-        {!sameLocation && (
-          <FormControl fullWidth className="drop-off-location">
-            <LocationSelectList
-              label={commonStrings.DROP_OFF_LOCATION}
-              value={dropOffLocation as bookcarsTypes.Location}
-              hidePopupIcon
-              customOpen={env.isMobile}
-              init={!env.isMobile}
+  const dropOffForm = (
+    <FormControl className="drop-off-location">
+      <GoogleMapsLocationField
+        label={commonStrings.DROP_OFF_LOCATION}
+        value={dropOffLocation as bookcarsTypes.LocationWithCoordinates | null}
+        onChange={handleDropOffLocationChange}
+        required
+        variant="outlined"
+      />
+    </FormControl>
+  )
+
+  const filterContent = (
+    <form onSubmit={handleSubmit}>
+      <div className="filter-container">
+        <div className="filter-row pickup-location">
+          <FormControl>
+            <GoogleMapsLocationField
+              label={commonStrings.PICK_UP_LOCATION}
+              value={pickupLocation as bookcarsTypes.LocationWithCoordinates | null}
+              onChange={handlePickupLocationChange}
               required
-              variant="standard"
-              onChange={handleDropOffLocationChange}
+              variant="outlined"
             />
           </FormControl>
-        )}
-        <FormControl fullWidth className="from">
-          <DateTimePicker
-            label={strings.PICK_UP_DATE}
-            value={from}
-            minDate={_minDate}
-            variant="standard"
-            required
-            onChange={(date) => {
-              if (date) {
-                setFrom(date)
-                setFromError(false)
-              } else {
-                setFrom(undefined)
-                setMinDate(_minDate)
-              }
-            }}
-            onError={(err: DateTimeValidationError) => {
-              if (err) {
-                setFromError(true)
-              } else {
-                setFromError(false)
-              }
-            }}
-            language={UserService.getLanguage()}
+          <FormControl>
+            <DateTimePicker
+              label={strings.PICK_UP_DATE}
+              value={from}
+              minDate={_minDate}
+              onChange={(date) => {
+                if (date) {
+                  setFrom(date)
+                  setFromError(false)
+                } else {
+                  setFrom(undefined)
+                }
+              }}
+              onError={(err: DateTimeValidationError) => {
+                if (err) {
+                  setFromError(true)
+                } else {
+                  setFromError(false)
+                }
+              }}
+              language={UserService.getLanguage()}
+              required
+              variant="outlined"
+            />
+            <FormHelperText error={minPickupHoursError}>{(minPickupHoursError && strings.MIN_PICK_UP_HOURS_ERROR) || ''}</FormHelperText>
+          </FormControl>
+        </div>
+        <div className="filter-row">
+          <FormControlLabel
+            className="checkboxLabel"
+            control={<Checkbox checked={sameLocation} onChange={handleSameLocationChange} />}
+            label={strings.DROP_OFF}
           />
-          <FormHelperText error={minPickupHoursError}>{(minPickupHoursError && strings.MIN_PICK_UP_HOURS_ERROR) || ''}</FormHelperText>
-        </FormControl>
-        <FormControl fullWidth className="to">
-          <DateTimePicker
-            label={strings.DROP_OFF_DATE}
-            value={to}
-            minDate={minDate}
-            variant="standard"
-            required
-            onChange={(date) => {
-              if (date) {
-                setTo(date)
-                setToError(false)
-              } else {
-                setTo(undefined)
-              }
-            }}
-            onError={(err: DateTimeValidationError) => {
-              if (err) {
-                setToError(true)
-              } else {
-                setToError(false)
-              }
-            }}
-            language={UserService.getLanguage()}
-          />
-          <FormHelperText error={minRentalHoursError}>{(minRentalHoursError && strings.MIN_RENTAL_HOURS_ERROR) || ''}</FormHelperText>
-        </FormControl>
-        <FormControl fullWidth className="fc-search">
-          <Button type="submit" variant="contained" className="btn-primary btn-search">
-            {commonStrings.SEARCH}
-          </Button>
-        </FormControl>
-        <FormControl fullWidth className="chk-same-location">
-          <FormControlLabel control={<Checkbox checked={sameLocation} onChange={handleSameLocationChange} />} label={strings.DROP_OFF} />
-        </FormControl>
-      </form>
+          {!sameLocation && dropOffForm}
+          <FormControl className="datetime">
+            <DateTimePicker
+              label={strings.DROP_OFF_DATE}
+              value={to}
+              minDate={minDate}
+              onChange={(date) => {
+                if (date) {
+                  setTo(date)
+                  setToError(false)
+                } else {
+                  setTo(undefined)
+                }
+              }}
+              onError={(err: DateTimeValidationError) => {
+                if (err) {
+                  setToError(true)
+                } else {
+                  setToError(false)
+                }
+              }}
+              language={UserService.getLanguage()}
+              required
+              variant="outlined"
+            />
+            <FormHelperText error={minRentalHoursError}>{(minRentalHoursError && strings.MIN_RENTAL_HOURS_ERROR) || ''}</FormHelperText>
+          </FormControl>
+          <div className="action">
+            <Button
+              type="submit"
+              variant="contained"
+              className="btn-search"
+              size="small"
+              disableElevation
+            >
+              {commonStrings.SEARCH}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </form>
+  )
+
+  return collapse ? (
+    <Accordion title={strings.SEARCH_FORM} className={className} offsetHeight={accordionHeight}>
+      {filterContent}
     </Accordion>
+  ) : (
+    <div className={className}>{filterContent}</div>
   )
 }
 

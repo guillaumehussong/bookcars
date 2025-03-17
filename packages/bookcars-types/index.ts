@@ -238,6 +238,17 @@ export interface GetCarsPayload {
   deposit?: number
   availability?: string[]
   pickupLocation?: string
+  pickupCoordinates?: {
+    latitude: number
+    longitude: number
+  }
+  dropOffLocation?: string
+  dropOffCoordinates?: {
+    latitude: number
+    longitude: number
+  }
+  searchRadius?: number
+  exactLocationOnly?: boolean
   ranges?: string[]
   multimedia?: string[]
   rating?: number
@@ -383,6 +394,19 @@ export interface User {
   licenseRequired?: boolean
   license?: string | null
   minimumRentalDays?: number
+  googleMapReviews?: {
+    rating: number
+    count: number
+    url?: string
+  }
+}
+
+export interface SortedSupplier extends User {
+  distance: number
+  coordinates?: {
+    latitude: number
+    longitude: number
+  }
 }
 
 export interface Option {
@@ -416,6 +440,11 @@ export interface Location {
   parkingSpots?: ParkingSpot[]
 }
 
+export interface LocationWithCoordinates extends Location {
+  latitude: number
+  longitude: number
+}
+
 export interface Country {
   _id: string
   name?: string
@@ -437,35 +466,36 @@ export interface DateBasedPrice {
 export interface Car {
   _id: string
   name: string
-  supplier: User
+  supplier?: User
   minimumAge: number
-  locations: Location[]
-
+  locations: string[] | Location[]
+  price?: number
+  
   // price fields
   dailyPrice: number
-  discountedDailyPrice: number | null
-  biWeeklyPrice: number | null
-  discountedBiWeeklyPrice: number | null
-  weeklyPrice: number | null
-  discountedWeeklyPrice: number | null
-  monthlyPrice: number | null
-  discountedMonthlyPrice: number | null
+  discountedDailyPrice?: number
+  biWeeklyPrice?: number
+  discountedBiWeeklyPrice?: number
+  weeklyPrice?: number
+  discountedWeeklyPrice?: number
+  monthlyPrice?: number
+  discountedMonthlyPrice?: number
 
-  // date based price fields
-  isDateBasedPrice: boolean
-  dateBasedPrices: DateBasedPrice[]
+  // date based price
+  isDateBasedPrice?: boolean
+  dateBasedPrices?: DateBasedPrice[]
 
   deposit: number
   available: boolean
   fullyBooked?: boolean
   comingSoon?: boolean
-  type: CarType
-  gearbox: GearboxType
+  type: string
+  gearbox: string
   aircon: boolean
   image?: string
   seats: number
   doors: number
-  fuelPolicy: FuelPolicy
+  fuelPolicy: string
   mileage: number
   cancellation: number
   amendments: number
@@ -474,11 +504,13 @@ export interface Car {
   fullInsurance: number
   additionalDriver: number
   range: string
-  multimedia: CarMultimedia[] | undefined
+  multimedia: string[]
   rating?: number
-  trips: number
   co2?: number
-  [propKey: string]: any
+  
+  // Distance information
+  distance?: number
+  closestLocation?: Location
 }
 
 export interface Data<T> {

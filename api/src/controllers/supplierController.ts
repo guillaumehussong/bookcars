@@ -16,6 +16,7 @@ import Car from '../models/Car'
 import DateBasedPrice from '../models/DateBasedPrice'
 import * as helper from '../common/helper'
 import * as logger from '../common/logger'
+import Location from '../models/Location'
 
 /**
  * Validate Supplier by fullname.
@@ -312,7 +313,51 @@ export const getAllSuppliers = async (req: Request, res: Response) => {
 export const getFrontendSuppliers = async (req: Request, res: Response) => {
   try {
     const { body }: { body: bookcarsTypes.GetCarsPayload } = req
-    const pickupLocation = new mongoose.Types.ObjectId(body.pickupLocation)
+    
+    // Coordonnées de recherche - priorité aux coordonnées directes
+    let searchCoordinates = null
+    let pickupLocation = null
+
+    // Si des coordonnées directes sont fournies, les utiliser
+    if (body.pickupCoordinates && body.pickupCoordinates.latitude && body.pickupCoordinates.longitude) {
+      searchCoordinates = {
+        latitude: body.pickupCoordinates.latitude,
+        longitude: body.pickupCoordinates.longitude
+      }
+      logger.info(`[supplier.getFrontendSuppliers] Using provided coordinates: ${JSON.stringify(searchCoordinates)}`)
+    } 
+    // Sinon, essayer de récupérer l'emplacement par ID
+    else if (body.pickupLocation) {
+      try {
+        pickupLocation = new mongoose.Types.ObjectId(body.pickupLocation)
+        // Récupérer les coordonnées de l'emplacement
+        const locationExists = await Location.findById(pickupLocation).lean()
+        if (locationExists) {
+          if (locationExists.latitude && locationExists.longitude) {
+            searchCoordinates = {
+              latitude: locationExists.latitude,
+              longitude: locationExists.longitude
+            }
+            logger.info(`[supplier.getFrontendSuppliers] Using location coordinates: ${JSON.stringify(searchCoordinates)}`)
+          } else {
+            logger.info(`[supplier.getFrontendSuppliers] Location found but no coordinates available: ${pickupLocation}`)
+          }
+        } else {
+          logger.info(`[supplier.getFrontendSuppliers] Pickup location not found: ${pickupLocation}`)
+          return res.json([])
+        }
+      } catch (err) {
+        logger.info(`[supplier.getFrontendSuppliers] Invalid pickup location ID: ${body.pickupLocation}`)
+        return res.json([])
+      }
+    }
+
+    // Si aucune coordonnée n'est disponible et aucun emplacement valide, retourner un résultat vide
+    if (!searchCoordinates && !pickupLocation) {
+      logger.info(`[supplier.getFrontendSuppliers] No valid coordinates or location provided`)
+      return res.json([])
+    }
+
     const {
       carType,
       gearbox,
@@ -329,11 +374,16 @@ export const getFrontendSuppliers = async (req: Request, res: Response) => {
 
     const $match: mongoose.FilterQuery<bookcarsTypes.Car> = {
       $and: [
-        { locations: pickupLocation },
-        { available: true }, { type: { $in: carType } },
+        { type: { $in: carType } },
         { gearbox: { $in: gearbox } },
+        { available: true },
         { fuelPolicy: { $in: fuelPolicy } },
       ],
+    }
+
+    // Si nous avons un ID d'emplacement, filtrer par cet emplacement
+    if (pickupLocation) {
+      $match.$and!.push({ locations: pickupLocation })
     }
 
     if (carSpecs) {

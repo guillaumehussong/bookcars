@@ -17,6 +17,7 @@ import {
   Check as CheckIcon,
   Clear as UncheckIcon,
   LocationOn as LocationIcon,
+  FmdGood as FmdGoodIcon,
 } from '@mui/icons-material'
 import * as bookcarsTypes from ':bookcars-types'
 import * as bookcarsHelper from ':bookcars-helper'
@@ -138,7 +139,7 @@ const Car = () => {
               } catch (err) {
                 helper.error(err)
               }
-            } else if (_car.supplier._id === _user._id) {
+            } else if (_car.supplier && _car.supplier._id === _user._id) {
               setSuppliers([_user._id as string])
               setCar(_car)
               setVisible(true)
@@ -323,10 +324,10 @@ const Car = () => {
                 </ul>
                 <ul className="locations-list">
                   {car.locations.map((location) => (
-                    <li key={location._id}>
+                    <li key={typeof location === 'string' ? location : location._id}>
                       <div className="car-info-list-item">
-                        <LocationIcon />
-                        <span className="car-info-list-text">{location.name}</span>
+                        <FmdGoodIcon className="car-info-list-item-icon" />
+                        <span className="car-info-list-text">{typeof location === 'string' ? location : location.name}</span>
                       </div>
                     </li>
                   ))}

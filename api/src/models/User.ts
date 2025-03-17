@@ -132,6 +132,21 @@ const userSchema = new Schema<env.User>(
       type: Date,
       index: { name: USER_EXPIRE_AT_INDEX_NAME, expireAfterSeconds: env.USER_EXPIRE_AT, background: true },
     },
+    googleMapReviews: {
+      rating: {
+        type: Number,
+        min: 0,
+        max: 5,
+      },
+      count: {
+        type: Number,
+        min: 0,
+      },
+      url: {
+        type: String,
+        trim: true,
+      },
+    },
   },
   {
     timestamps: true,

@@ -2,7 +2,14 @@ import React, { useState, useEffect } from 'react'
 import {
   Card,
   CardContent,
-  Typography
+  Typography,
+  Alert,
+  Grid,
+  Box,
+  Container,
+  Paper,
+  Divider,
+  Chip
 } from '@mui/material'
 import * as bookcarsTypes from ':bookcars-types'
 import * as bookcarsHelper from ':bookcars-helper'
@@ -42,9 +49,11 @@ interface CarListProps {
   multimedia?: string[]
   rating?: number
   seats?: number
-  distance?: string
+  supplierDistances?: Record<string, number>
   includeAlreadyBookedCars?: boolean
   includeComingSoonCars?: boolean
+  searchRadius?: number
+  exactLocationOnly?: boolean
   onLoad?: bookcarsTypes.DataEvent<bookcarsTypes.Car>
 }
 
@@ -73,9 +82,11 @@ const CarList = ({
   multimedia,
   rating,
   seats,
-  distance,
+  supplierDistances,
   includeAlreadyBookedCars,
   includeComingSoonCars,
+  searchRadius,
+  exactLocationOnly,
   onLoad,
 }: CarListProps) => {
   const [init, setInit] = useState(true)
@@ -85,6 +96,7 @@ const CarList = ({
   const [rowCount, setRowCount] = useState(0)
   const [totalRecords, setTotalRecords] = useState(0)
   const [page, setPage] = useState(1)
+  const [networkError, setNetworkError] = useState(false)
 
   useEffect(() => {
     if (env.PAGINATION_MODE === Const.PAGINATION_MODE.INFINITE_SCROLL || env.isMobile) {
@@ -121,6 +133,7 @@ const CarList = ({
   ) => {
     try {
       setLoading(true)
+      setNetworkError(false)
 
       const payload: bookcarsTypes.GetCarsPayload = {
         suppliers: _suppliers ?? [],
@@ -138,22 +151,41 @@ const CarList = ({
         days: bookcarsHelper.days(from, to),
         includeAlreadyBookedCars,
         includeComingSoonCars,
+        searchRadius,
+        exactLocationOnly,
       }
 
-      const data = await CarService.getCars(payload, _page, env.CARS_PAGE_SIZE)
+      console.log('Sending search payload:', JSON.stringify(payload))
 
-      const _data = data && data.length > 0 ? data[0] : { pageInfo: { totalRecord: 0 }, resultData: [] }
+      const data = await CarService.getCars(payload, _page, env.CARS_PAGE_SIZE)
+      console.log('Received data from API:', JSON.stringify(data))
+
+      const _data = data && data.length > 0 ? data[0] : { pageInfo: { totalRecords: 0 }, resultData: [] }
       if (!_data) {
+        console.error('No data returned from API')
         helper.error()
         return
       }
-      const _totalRecords = Array.isArray(_data.pageInfo) && _data.pageInfo.length > 0 ? _data.pageInfo[0].totalRecords : 0
+      
+      console.log('Processed data:', JSON.stringify(_data))
+      
+      let _totalRecords = 0
+      if (Array.isArray(_data.pageInfo) && _data.pageInfo.length > 0) {
+        _totalRecords = _data.pageInfo[0].totalRecords
+      } else if (_data.pageInfo && typeof _data.pageInfo === 'object') {
+        _totalRecords = _data.pageInfo.totalRecords || 0
+      }
 
       let _rows = []
       if (env.PAGINATION_MODE === Const.PAGINATION_MODE.INFINITE_SCROLL || env.isMobile) {
         _rows = _page === 1 ? _data.resultData : [...rows, ..._data.resultData]
       } else {
         _rows = _data.resultData
+      }
+
+      console.log(`Received ${_rows.length} cars from API, total records: ${_totalRecords}`)
+      if (_rows.length > 0) {
+        console.log('First car:', JSON.stringify(_rows[0]))
       }
 
       setRows(_rows)
@@ -169,6 +201,11 @@ const CarList = ({
         onLoad({ rows: _data.resultData, rowCount: _totalRecords })
       }
     } catch (err) {
+      console.error('Error in fetchData:', err)
+      // Check if it's a network error
+      if (err && (err as any).code === 'ERR_NETWORK') {
+        setNetworkError(true)
+      }
       helper.error(err)
     } finally {
       setLoading(false)
@@ -179,20 +216,29 @@ const CarList = ({
   useEffect(() => {
     if (suppliers) {
       if (suppliers.length > 0) {
+        console.log(`Fetching cars with ${suppliers.length} suppliers for location ${pickupLocation}`)
         fetchData(page, suppliers, pickupLocation, carSpecs, _carType, gearbox, mileage, fuelPolicy, deposit, ranges, multimedia, rating, seats)
       } else {
-        setRows([])
-        setFetch(false)
-        if (onLoad) {
-          onLoad({ rows: [], rowCount: 0 })
-        }
-        setInit(false)
+        console.log('No suppliers provided, fetching cars without supplier filter')
+        fetchData(page, [], pickupLocation, carSpecs, _carType, gearbox, mileage, fuelPolicy, deposit, ranges, multimedia, rating, seats)
       }
+    } else if (pickupLocation) {
+      console.log('No suppliers array provided, fetching cars without supplier filter')
+      fetchData(page, [], pickupLocation, carSpecs, _carType, gearbox, mileage, fuelPolicy, deposit, ranges, multimedia, rating, seats)
+    } else {
+      console.log('No suppliers and no location, setting empty rows')
+      setRows([])
+      setFetch(false)
+      if (onLoad) {
+        onLoad({ rows: [], rowCount: 0 })
+      }
+      setInit(false)
     }
   }, [page, suppliers, pickupLocation, carSpecs, _carType, gearbox, mileage, fuelPolicy, deposit, ranges, multimedia, rating, seats, from, to]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (cars) {
+      console.log(`Setting ${cars.length} cars from props`)
       setRows(cars)
       setFetch(false)
       if (onLoad) {
@@ -214,59 +260,70 @@ const CarList = ({
   }, [reload, suppliers, pickupLocation, carSpecs, _carType, gearbox, mileage, fuelPolicy, deposit, ranges, multimedia, rating, seats]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <>
-      <section className={`${className ? `${className} ` : ''}car-list`}>
-        {rows.length === 0
-          ? !init
-          && !loading
-          && !carListLoading
-          && (
-            <Card variant="outlined" className="empty-list">
-              <CardContent>
-                <Typography color="textSecondary">{strings.EMPTY_LIST}</Typography>
-              </CardContent>
-            </Card>
-          )
-          : ((from && to && pickupLocation && dropOffLocation) || hidePrice) // || (hidePrice && booking))
-          && (
-            <>
-              {totalRecords > 0 && (
-                <div className="title">
-                  <div className="bookcars">
-                    <span>{strings.TITLE_1}</span>
-                    <span className="title-bookcars">{env.WEBSITE_NAME}</span>
-                    <span>{strings.TITLE_2}</span>
-                  </div>
-                  <div className="car-count">
-                    {`(${totalRecords} ${totalRecords === 1 ? strings.TITLE_CAR_AVAILABLE : strings.TITLE_CARS_AVAILABLE})`}
-                  </div>
-                </div>
-              )}
+    <div className={`car-list-container${className ? ` ${className}` : ''}`}>
+      {networkError && (
+        <Alert severity="error" className="network-error">
+          {strings.NETWORK_ERROR}
+        </Alert>
+      )}
 
-              {rows.map((car) => (
+      {pickupLocationName && searchRadius && searchRadius > 0 && !exactLocationOnly && (
+        <Alert severity="info" className="search-radius-info">
+          {`${strings.SEARCHING_WITHIN} ${searchRadius} ${strings.KM_AROUND} ${pickupLocationName}`}
+        </Alert>
+      )}
+
+      {(loading || init || carListLoading) && (
+        <div className="car-list-progress">
+          <Progress />
+        </div>
+      )}
+
+      {!(loading || init || carListLoading) && rows.length === 0 && (
+        <Paper elevation={1} className="empty-list">
+          <Typography>{strings.EMPTY_LIST}</Typography>
+        </Paper>
+      )}
+
+      {!(loading || init || carListLoading) && rows.length > 0 && (
+        <>
+          <section className="car-list">
+            {rows.map((car) => (
+              <div className="car-container" key={car._id}>
                 <Car
-                  key={car._id}
                   car={car}
                   booking={booking}
-                  pickupLocation={pickupLocation}
-                  dropOffLocation={dropOffLocation}
                   from={from as Date}
                   to={to as Date}
+                  pickupLocation={pickupLocation}
+                  dropOffLocation={dropOffLocation}
                   pickupLocationName={pickupLocationName}
-                  distance={distance}
+                  distance={supplierDistances?.[car.supplier?._id || ''] || undefined}
+                  hidePrice={hidePrice}
                   hideSupplier={hideSupplier}
                   sizeAuto={sizeAuto}
-                  hidePrice={hidePrice}
                 />
-              ))}
-            </>
+              </div>
+            ))}
+          </section>
+
+          {env.PAGINATION_MODE === Const.PAGINATION_MODE.CLASSIC && !env.isMobile && (
+            <Pager
+              page={page}
+              pageSize={env.CARS_PAGE_SIZE}
+              rowCount={totalRecords}
+              totalRecords={totalRecords}
+              onNext={() => {
+                setPage(page + 1)
+              }}
+              onPrevious={() => {
+                setPage(page - 1)
+              }}
+            />
           )}
-        {loading && <Progress />}
-      </section>
-      {env.PAGINATION_MODE === Const.PAGINATION_MODE.CLASSIC && !env.isMobile && (
-        <Pager page={page} pageSize={env.CARS_PAGE_SIZE} rowCount={rowCount} totalRecords={totalRecords} onNext={() => setPage(page + 1)} onPrevious={() => setPage(page - 1)} />
+        </>
       )}
-    </>
+    </div>
   )
 }
 

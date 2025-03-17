@@ -159,6 +159,7 @@ const env = {
   MAP_LATITUDE: Number(String(import.meta.env.VITE_BC_MAP_LATITUDE || '34.0268755')),
   MAP_LONGITUDE: Number(String(import.meta.env.VITE_BC_MAP_LONGITUDE || '1.6528399999999976')),
   MAP_ZOOM: Number(String(import.meta.env.VITE_BC_MAP_ZOOM || '5')),
+  GOOGLE_MAPS_API_KEY: String(import.meta.env.VITE_BC_GOOGLE_MAPS_API_KEY || 'AIzaSyAky_LAk9E9vvepmobFuxIQK06f8zzgZoc'),
 }
 
 export default env

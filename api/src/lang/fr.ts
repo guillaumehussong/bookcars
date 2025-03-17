@@ -46,4 +46,5 @@ export const fr = {
   FROM: 'De',
   MESSAGE: 'Message',
   LOCATION_IMAGE_NOT_FOUND: 'Image de lieu introuvable',
+  PICKUP_LOCATION_NOT_FOUND: 'Lieu de prise en charge introuvable',
 }

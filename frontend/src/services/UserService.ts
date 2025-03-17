@@ -290,6 +290,15 @@ export const getUser = (id?: string): Promise<bookcarsTypes.User | null> => {
         { withCredentials: true }
       )
       .then((res) => res.data)
+      .catch((error) => {
+        // Handle authentication errors gracefully
+        if (error.response && error.response.status === 403) {
+          console.log(`Authentication required to get user ${id}. User not logged in.`);
+        } else {
+          console.error(`Error getting user ${id}:`, error);
+        }
+        return null;
+      });
   }
   return new Promise((resolve) => {
     resolve(null)

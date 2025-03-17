@@ -401,7 +401,7 @@ const CarList = ({
               </Card>
             )
             : rows.map((car, index) => {
-              const edit = admin || car.supplier._id === user._id
+              const edit = admin || (car.supplier && car.supplier._id === user._id)
               return (
                 <article key={car._id}>
                   <div className="name">
@@ -418,7 +418,6 @@ const CarList = ({
                               <img alt="Rating" src={RatingIcon} />
                             </>
                           )}
-                          {car.trips >= 10 && <span className="trips">{`(${car.trips} ${strings.TRIPS})`}</span>}
                         </div>
                         {car.co2 && (
                           <div className="co2">
@@ -436,7 +435,7 @@ const CarList = ({
                           </div>
                         )}
                       </div>
-                      {!hideSupplier && (
+                      {!hideSupplier && car.supplier && (
                         <div className="car-supplier" title={car.supplier.fullName}>
                           <span className="car-supplier-logo">
                             <img src={bookcarsHelper.joinURL(env.CDN_USERS, car.supplier.avatar)} alt={car.supplier.fullName} />

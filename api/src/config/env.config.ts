@@ -443,6 +443,11 @@ export interface User extends Document {
   license?: string | null
   minimumRentalDays?: number
   expireAt?: Date
+  googleMapReviews?: {
+    rating: number;
+    count: number;
+    url?: string;
+  }
 }
 
 /**

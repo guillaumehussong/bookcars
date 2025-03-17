@@ -596,7 +596,7 @@ export const getBirthDateError = (minimumAge: number) =>
  * @returns {boolean}
  */
 export const carOptionAvailable = (car: bookcarsTypes.Car | undefined, option: string) =>
-  car && option in car && (car[option] as number) > -1
+  car && option in car && ((car as unknown as Record<string, number>)[option]) > -1
 
 /**
  * Return [latitude, longitude] of user.

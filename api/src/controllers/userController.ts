@@ -22,6 +22,9 @@ import NotificationCounter from '../models/NotificationCounter'
 import Car from '../models/Car'
 import AdditionalDriver from '../models/AdditionalDriver'
 import * as logger from '../common/logger'
+import Country from '../models/Country'
+import LocationValue from '../models/LocationValue'
+import Location from '../models/Location'
 
 /**
  * Get status message as HTML.
@@ -74,6 +77,50 @@ const _signup = async (req: Request, res: Response, userType: bookcarsTypes.User
         await fs.rename(avatar, newPath)
         user.avatar = filename
         await user.save()
+      }
+    }
+
+    // Create default location for supplier
+    if (userType === bookcarsTypes.UserType.Supplier && user.location) {
+      try {
+        // Get default country (first country in the database)
+        const defaultCountry = await Country.findOne({})
+        
+        if (defaultCountry) {
+          // Create location values for all supported languages
+          const locationValues: string[] = []
+          for (const language of env.LANGUAGES) {
+            const locationName = language === 'en' 
+              ? `${user.fullName} - Main Office` 
+              : language === 'fr' 
+                ? `${user.fullName} - Bureau Principal`
+                : language === 'es'
+                  ? `${user.fullName} - Oficina Principal`
+                  : `${user.fullName} - Main Office`
+            
+            const locationValue = new LocationValue({
+              language,
+              value: locationName,
+            })
+            await locationValue.save()
+            locationValues.push(locationValue.id)
+          }
+
+          // Create the location
+          const location = new Location({
+            country: defaultCountry._id,
+            values: locationValues,
+            // We don't have coordinates, but they could be added later
+          })
+          await location.save()
+
+          logger.info(`[user._signup] Created default location for supplier: ${user.fullName}`)
+        } else {
+          logger.error('[user._signup] Could not create default location for supplier: No default country found')
+        }
+      } catch (err) {
+        logger.error(`[user._signup] Error creating default location for supplier: ${user.fullName}`, err)
+        // We don't want to fail the user creation if location creation fails
       }
     }
   } catch (err) {
@@ -203,6 +250,50 @@ export const create = async (req: Request, res: Response) => {
         await fs.rename(avatar, newPath)
         user.avatar = filename
         await user.save()
+      }
+    }
+
+    // Create default location for supplier
+    if (user.type === bookcarsTypes.UserType.Supplier && user.location) {
+      try {
+        // Get default country (first country in the database)
+        const defaultCountry = await Country.findOne({})
+        
+        if (defaultCountry) {
+          // Create location values for all supported languages
+          const locationValues: string[] = []
+          for (const language of env.LANGUAGES) {
+            const locationName = language === 'en' 
+              ? `${user.fullName} - Main Office` 
+              : language === 'fr' 
+                ? `${user.fullName} - Bureau Principal`
+                : language === 'es'
+                  ? `${user.fullName} - Oficina Principal`
+                  : `${user.fullName} - Main Office`
+            
+            const locationValue = new LocationValue({
+              language,
+              value: locationName,
+            })
+            await locationValue.save()
+            locationValues.push(locationValue.id)
+          }
+
+          // Create the location
+          const location = new Location({
+            country: defaultCountry._id,
+            values: locationValues,
+            // We don't have coordinates, but they could be added later
+          })
+          await location.save()
+
+          logger.info(`[user.create] Created default location for supplier: ${user.fullName}`)
+        } else {
+          logger.error('[user.create] Could not create default location for supplier: No default country found')
+        }
+      } catch (err) {
+        logger.error(`[user.create] Error creating default location for supplier: ${user.fullName}`, err)
+        // We don't want to fail the user creation if location creation fails
       }
     }
 
@@ -963,6 +1054,9 @@ export const update = async (req: Request, res: Response) => {
       minimumRentalDays,
     } = body
 
+    // Store old location for comparison
+    const oldLocation = user.location
+
     if (fullName) {
       user.fullName = fullName
     }
@@ -985,6 +1079,55 @@ export const update = async (req: Request, res: Response) => {
     }
 
     await user.save()
+
+    // If this is a supplier and the location has changed, update or create the default location
+    if (user.type === bookcarsTypes.UserType.Supplier && location && location !== oldLocation) {
+      try {
+        // Check if supplier already has a default location
+        // For simplicity, we'll just create a new location if the address has changed
+        // In a more complex implementation, you might want to update the existing location
+
+        // Get default country (first country in the database)
+        const defaultCountry = await Country.findOne({})
+        
+        if (defaultCountry) {
+          // Create location values for all supported languages
+          const locationValues: string[] = []
+          for (const language of env.LANGUAGES) {
+            const locationName = language === 'en' 
+              ? `${user.fullName} - Main Office` 
+              : language === 'fr' 
+                ? `${user.fullName} - Bureau Principal`
+                : language === 'es'
+                  ? `${user.fullName} - Oficina Principal`
+                  : `${user.fullName} - Main Office`
+            
+            const locationValue = new LocationValue({
+              language,
+              value: locationName,
+            })
+            await locationValue.save()
+            locationValues.push(locationValue.id)
+          }
+
+          // Create the location
+          const location = new Location({
+            country: defaultCountry._id,
+            values: locationValues,
+            // We don't have coordinates, but they could be added later
+          })
+          await location.save()
+
+          logger.info(`[user.update] Created/updated default location for supplier: ${user.fullName}`)
+        } else {
+          logger.error('[user.update] Could not create/update default location for supplier: No default country found')
+        }
+      } catch (err) {
+        logger.error(`[user.update] Error creating/updating default location for supplier: ${user.fullName}`, err)
+        // We don't want to fail the user update if location creation fails
+      }
+    }
+
     return res.sendStatus(200)
   } catch (err) {
     logger.error(`[user.update] ${i18n.t('DB_ERROR')} ${JSON.stringify(req.body)}`, err)

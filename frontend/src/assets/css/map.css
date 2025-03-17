@@ -1,17 +1,42 @@
-.title {
+.suppliers-map-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-title {
   text-align: center;
   font-weight: 500;
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  color: #333;
 }
 
 .map {
-  min-height: 540px;
+  min-height: 300px;
   height: 100%;
   width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+}
+
+.suppliers-map {
+  z-index: 0;
 }
 
 .marker .name {
   text-align: center;
   margin-bottom: 5px;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.marker .distance {
+  text-align: center;
+  margin-bottom: 5px;
+  font-size: 0.8rem;
+  color: #666;
 }
 
 .marker .action {
@@ -31,4 +56,47 @@
   padding: 4px 10px;
   margin-bottom: 5px;
   width: 100%;
+  font-size: 0.8rem;
+  transition: background-color 0.2s ease;
+}
+
+.marker .action-btn:hover {
+  background: #3498db;
+}
+
+/* Custom marker styles */
+.leaflet-marker-icon {
+  transition: transform 0.2s ease;
+}
+
+.leaflet-marker-icon:hover {
+  transform: scale(1.1);
+}
+
+.user-location-marker .leaflet-popup-content-wrapper {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.user-location-marker .leaflet-popup-tip {
+  background-color: #4CAF50;
+}
+
+.supplier-marker .leaflet-popup-content-wrapper {
+  background-color: white;
+}
+
+.supplier-marker .leaflet-popup-tip {
+  background-color: white;
+}
+
+/* Responsive styles */
+@media only screen and (width <=960px) {
+  .map {
+    min-height: 250px;
+  }
+  
+  .map-title {
+    font-size: 1rem;
+  }
 }

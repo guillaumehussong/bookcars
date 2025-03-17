@@ -1,50 +1,105 @@
-section.car-list {
+/* Styles pour le conteneur principal */
+.car-list-container {
+  padding-top: 20px;
+  padding-bottom: 60px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Style pour le titre principal */
+.car-list-container h1 {
+  font-size: 28px;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.car-list-container h1 span {
+  color: #1976d2;
+}
+
+/* Style pour le compteur de voitures */
+.car-list-container .mui-typography-subtitle1 {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+/* Style pour les alertes */
+.car-list-container .search-radius-info,
+.car-list-container .network-error {
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+/* Style pour l'indicateur de chargement */
+.car-list-progress {
+  margin: 40px 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Style pour le message de liste vide */
+.car-list-container .empty-list {
+  padding: 30px;
+  text-align: center;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+/* Style pour la section car-list */
+.car-list {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding-bottom: 80px;
 }
 
-section.car-list .empty-list {
-  margin-top: 15px;
-  text-align: center;
-  width: 250px;
-}
-
-section.car-list div.title {
-  text-align: left;
+/* Style pour les conteneurs de voitures */
+.car-container {
   width: 100%;
-  margin-bottom: 5px;
-  font-weight: 400;
+  margin-bottom: 20px;
 }
 
-section.car-list div.title div.bookcars {
-  font-size: 22px;
+/* Style pour la pagination */
+.car-list-container .mui-pagination-root {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
 }
 
-section.car-list div.title div.bookcars span.title-bookcars {
-  color: #212121;
-  font-weight: 500;
-}
-
-section.car-list div.title div.car-count {
-  color: #717171;
-  font-size: 14px;
-}
-
-@media only screen and (width <=960px) {
-  section.car-list .empty-list {
-    width: calc(100% - 20px);
+/* Styles responsifs */
+@media (width <= 960px) {
+  .car-list-container {
+    padding-left: 16px;
+    padding-right: 16px;
   }
+  
+  .car-list-container h1 {
+    font-size: 24px;
+  }
+  
+  .car-list {
+    max-width: 100%;
+  }
+}
 
-  section.car-list div.title {
-    max-width: 600px;
+@media (width <= 600px) {
+  .car-list-container {
     padding-left: 10px;
+    padding-right: 10px;
+  }
+  
+  .car-list-container h1 {
+    font-size: 20px;
+  }
+  
+  .car-list-container .mui-typography-subtitle1 {
+    font-size: 14px;
+  }
+  
+  .car-container {
+    margin-bottom: 15px;
   }
 }
 
-@media only screen and (width >=960px) {
-  section.car-list div.title {
-    min-width: 800px;
-  }
-}

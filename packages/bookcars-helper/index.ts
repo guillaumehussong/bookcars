@@ -267,16 +267,18 @@ export const calculateTotalPrice = (car: bookcarsTypes.Car, from: Date, to: Date
       let applicableRate = (car.discountedDailyPrice || car.dailyPrice)
 
       // Check if a custom rate applies
-      for (const dateBasedPrice of car.dateBasedPrices) {
-        // Ensure startDate and endDate are also normalized
-        const _startDate = new Date(dateBasedPrice.startDate!)
-        _startDate.setHours(0, 0, 0, 0)
-        const _endDate = new Date(dateBasedPrice.endDate!)
-        _endDate.setHours(0, 0, 0, 0)
+      if (car.dateBasedPrices) {
+        for (const dateBasedPrice of car.dateBasedPrices) {
+          // Ensure startDate and endDate are also normalized
+          const _startDate = new Date(dateBasedPrice.startDate!)
+          _startDate.setHours(0, 0, 0, 0)
+          const _endDate = new Date(dateBasedPrice.endDate!)
+          _endDate.setHours(0, 0, 0, 0)
 
-        if (currentDate.getTime() >= _startDate.getTime() && currentDate.getTime() <= _endDate.getTime()) {
-          applicableRate = Number(dateBasedPrice.dailyPrice)
-          break
+          if (currentDate.getTime() >= _startDate.getTime() && currentDate.getTime() <= _endDate.getTime()) {
+            applicableRate = Number(dateBasedPrice.dailyPrice)
+            break
+          }
         }
       }
 

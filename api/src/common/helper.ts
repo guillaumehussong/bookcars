@@ -278,3 +278,35 @@ export const validateAccessToken = async (socialSignInType: bookcarsTypes.Social
  * @returns {string}
  */
 export const formatPayPalPrice = (price: number) => (Math.floor(price * 100) / 100).toFixed(2)
+
+/**
+ * Calculate the distance between two geographic coordinates using the Haversine formula.
+ * 
+ * @export
+ * @param {number} lat1 - Latitude of the first point in degrees
+ * @param {number} lon1 - Longitude of the first point in degrees
+ * @param {number} lat2 - Latitude of the second point in degrees
+ * @param {number} lon2 - Longitude of the second point in degrees
+ * @returns {number} - Distance in kilometers
+ */
+export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  // Convert latitude and longitude from degrees to radians
+  const radLat1 = (Math.PI * lat1) / 180
+  const radLon1 = (Math.PI * lon1) / 180
+  const radLat2 = (Math.PI * lat2) / 180
+  const radLon2 = (Math.PI * lon2) / 180
+
+  // Haversine formula
+  const dLat = radLat2 - radLat1
+  const dLon = radLon2 - radLon1
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(radLat1) * Math.cos(radLat2) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  
+  // Earth's radius in kilometers
+  const R = 6371
+  
+  // Distance in kilometers
+  return R * c
+}

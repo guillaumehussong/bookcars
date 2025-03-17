@@ -763,7 +763,7 @@ export const getBirthDateError = (minimumAge: number) =>
  * @returns {boolean}
  */
 export const carOptionAvailable = (car: bookcarsTypes.Car | undefined, option: string) =>
-  car && option in car && (car[option] as number) > -1
+  car && option in car && (car[option as keyof bookcarsTypes.Car] as number) > -1
 
 /**
  * Validate URL string.

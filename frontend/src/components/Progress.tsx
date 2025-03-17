@@ -5,10 +5,11 @@ import '@/assets/css/progress.css'
 
 interface ProgressProps {
   color?: 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' | 'inherit'
+  className?: string
 }
 
-const Progress = ({ color }: ProgressProps) => (
-  <div className="progress">
+const Progress = ({ color, className }: ProgressProps) => (
+  <div className={`progress${className ? ` ${className}` : ''}`}>
     <CircularProgress color={color || 'inherit'} size={24} />
   </div>
 )

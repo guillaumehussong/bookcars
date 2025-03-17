@@ -96,6 +96,7 @@ const strings = new LocalizedStrings({
     CAR_RANGE_MIDI: 'SUV',
     CAR_RANGE_MAXI: 'Fourgon',
     CAR_RANGE_SCOOTER: 'Scooter',
+    EXTENDED_SEARCH_RADIUS: 'Nous avons étendu votre recherche pour vous montrer plus de résultats. Certains véhicules peuvent être plus éloignés que votre rayon de recherche initial.',
   },
   en: {
     NEW_CAR: 'New car',
@@ -183,6 +184,7 @@ const strings = new LocalizedStrings({
     CAR_RANGE_MIDI: 'SUV',
     CAR_RANGE_MAXI: 'Van',
     CAR_RANGE_SCOOTER: 'Scooter',
+    EXTENDED_SEARCH_RADIUS: 'We have extended your search to show you more results. Some vehicles may be further away than your initial search radius.',
   },
   es: {
     NEW_CAR: 'Coche nuevo',
@@ -264,12 +266,13 @@ const strings = new LocalizedStrings({
     TITLE_CAR_AVAILABLE: 'coche disponible',
     TITLE_CARS_AVAILABLE: 'coches disponibles',
     DETAILS: 'Detalles',
-    FULLY_BOOKED: 'Ya Reservado',
+    FULLY_BOOKED: 'Totalmente Reservado',
     COMING_SOON: 'Próximamente',
-    CAR_RANGE_MINI: 'Auto',
-    CAR_RANGE_MIDI: 'Todoterreno',
-    CAR_RANGE_MAXI: 'furgoneta',
+    CAR_RANGE_MINI: 'Coche',
+    CAR_RANGE_MIDI: 'SUV',
+    CAR_RANGE_MAXI: 'Furgoneta',
     CAR_RANGE_SCOOTER: 'Scooter',
+    EXTENDED_SEARCH_RADIUS: 'Hemos ampliado su búsqueda para mostrarle más resultados. Algunos vehículos pueden estar más lejos que su radio de búsqueda inicial.',
   }
 })
 

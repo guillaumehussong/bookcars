@@ -324,28 +324,34 @@ const UpdateCar = () => {
             const _car = await CarService.getCar(id)
 
             if (_car) {
-              if (_user.type === bookcarsTypes.RecordType.Supplier && _user._id !== _car.supplier._id) {
+              if (_user.type === bookcarsTypes.RecordType.Supplier && _car.supplier && _user._id !== _car.supplier._id) {
                 setLoading(false)
                 setNoMatch(true)
                 return
               }
 
-              const _supplier = {
-                _id: _car.supplier._id as string,
-                name: _car.supplier.fullName,
-                image: _car.supplier.avatar,
+              if (_car.supplier) {
+                const _supplier = {
+                  _id: _car.supplier._id as string,
+                  name: _car.supplier.fullName,
+                  image: _car.supplier.avatar,
+                }
+                setSupplier(_supplier)
               }
 
               setCar(_car)
               setImageRequired(!_car.image)
               setName(_car.name)
-              setSupplier(_supplier)
               setMinimumAge(_car.minimumAge.toString())
               const lcs: bookcarsTypes.Option[] = []
               for (const loc of _car.locations) {
-                const { _id, name: _name } = loc
-                const lc: bookcarsTypes.Option = { _id, name: _name ?? '' }
-                lcs.push(lc)
+                if (typeof loc === 'string') {
+                  lcs.push({ _id: loc, name: '' })
+                } else {
+                  const { _id, name: _name } = loc
+                  const lc: bookcarsTypes.Option = { _id, name: _name ?? '' }
+                  lcs.push(lc)
+                }
               }
               setLocations(lcs)
               setDailyPrice(getPriceAsString(_car.dailyPrice))
@@ -358,7 +364,7 @@ const UpdateCar = () => {
               setDiscountedMonthlyPrice(getPriceAsString(_car.discountedMonthlyPrice))
               setDeposit(_car.deposit.toString())
               setRange(_car.range)
-              setMultimedia(_car?.multimedia || [])
+              setMultimedia((_car?.multimedia || []) as bookcarsTypes.CarMultimedia[])
               if (_car.rating) {
                 setRating(_car.rating.toString())
               }
@@ -381,8 +387,8 @@ const UpdateCar = () => {
               setCollisionDamageWaiver(extraToString(_car.collisionDamageWaiver))
               setFullInsurance(extraToString(_car.fullInsurance))
               setAdditionalDriver(extraToString(_car.additionalDriver))
-              setIsDateBasedPrice(_car.isDateBasedPrice)
-              setDateBasedPrices(_car.dateBasedPrices)
+              setIsDateBasedPrice(_car.isDateBasedPrice || false)
+              setDateBasedPrices(_car.dateBasedPrices || [])
               setVisible(true)
               setLoading(false)
             } else {

@@ -1,0 +1,17 @@
+{
+  "name": "bookcars-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for BookCars MongoDB database",
+  "main": "mcp-server.js",
+  "scripts": {
+    "start": "node mcp-server.js",
+    "test": "node mcp-client.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "mongoose": "^8.12.1",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "node-fetch": "^2.6.7"
+  }
+}
