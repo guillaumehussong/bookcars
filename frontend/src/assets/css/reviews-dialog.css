@@ -13,4 +13,39 @@
 
 .reviews-dialog .MuiDialogContent-root {
   padding: 20px;
+}
+
+.reviews-dialog .google-review-tag {
+  display: flex;
+  align-items: center;
+  background-color: #f5f5f5;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.reviews-dialog .review-source-filter {
+  margin-bottom: 20px;
+}
+
+.reviews-dialog .MuiToggleButtonGroup-root {
+  margin-bottom: 16px;
+}
+
+.reviews-dialog .MuiToggleButton-root.Mui-selected {
+  background-color: #FF9800 !important;
+  color: #FFFFFF !important;
+}
+
+.reviews-dialog .MuiToggleButton-root.Mui-selected:hover {
+  background-color: #F57C00 !important;
+}
+
+.reviews-dialog .section-title {
+  margin: 16px 0 8px 0;
+  font-weight: bold;
+}
+
+.reviews-dialog .google-view-more {
+  margin-top: 16px;
+  text-align: center;
 } 

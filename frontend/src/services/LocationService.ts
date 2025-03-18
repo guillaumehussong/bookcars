@@ -159,8 +159,8 @@ export const createLocationFromGoogleMapsId = async (googleMapsId: string, name?
       try {
         const coords = await GoogleMapsService.geocodeAddress(name)
         if (coords) {
-          latitude = coords.latitude
-          longitude = coords.longitude
+          latitude = coords.lat
+          longitude = coords.lng
         }
       } catch (error) {
         console.error('Error geocoding location name:', error)

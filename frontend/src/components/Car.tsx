@@ -163,6 +163,17 @@ const Car = ({
   const handleSupplierClick = () => {
     if (car.supplier && typeof car.supplier === 'object') {
       console.log('Supplier ID in handleSupplierClick:', car.supplier._id);
+      console.log('Supplier name:', car.supplier.fullName);
+      
+      // Set supplier name in URL parameters to ensure it's available for Google reviews
+      const params = new URLSearchParams(window.location.search);
+      params.set('supplier', car.supplier.fullName);
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', newUrl);
+      
+      // Log a message about using the real Google Maps API
+      console.log('Using real Google Maps API to fetch reviews for:', car.supplier.fullName);
+      
       setReviewType('supplier')
       setOpenReviewsDialog(true)
     }

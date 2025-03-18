@@ -18,6 +18,7 @@ import countryRoutes from './routes/countryRoutes'
 import paypalRoutes from './routes/paypalRoutes'
 import ipinfoRoutes from './routes/ipinfoRoutes'
 import reviewRoutes from './routes/reviewRoutes'
+import googleMapsRoutes from './routes/googleMapsRoutes'
 import * as helper from './common/helper'
 
 const app = express()
@@ -47,17 +48,20 @@ app.options('*', cors())
 app.use(cookieParser(env.COOKIE_SECRET))
 app.use(allowedMethods)
 
-app.use('/', supplierRoutes)
 app.use('/', bookingRoutes)
 app.use('/', locationRoutes)
-app.use('/', notificationRoutes)
+
 app.use('/', carRoutes)
 app.use('/', userRoutes)
-app.use('/', stripeRoutes)
+
 app.use('/', countryRoutes)
 app.use('/', paypalRoutes)
+app.use('/', stripeRoutes)
+app.use('/', supplierRoutes)
+app.use('/', notificationRoutes)
 app.use('/', ipinfoRoutes)
 app.use('/', reviewRoutes)
+app.use('/', googleMapsRoutes)
 
 i18n.locale = env.DEFAULT_LANGUAGE
 
