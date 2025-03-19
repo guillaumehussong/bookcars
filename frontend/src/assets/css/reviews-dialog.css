@@ -32,12 +32,7 @@
 }
 
 .reviews-dialog .MuiToggleButton-root.Mui-selected {
-  background-color: #FF9800 !important;
-  color: #FFFFFF !important;
-}
-
-.reviews-dialog .MuiToggleButton-root.Mui-selected:hover {
-  background-color: #F57C00 !important;
+  background-color: #e0e0e0;
 }
 
 .reviews-dialog .section-title {

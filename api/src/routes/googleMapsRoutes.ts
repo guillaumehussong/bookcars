@@ -1,6 +1,12 @@
 import express, { Request, Response } from 'express'
 import axios from 'axios'
+import mongoose from 'mongoose'
 import config from '../config/env.config'
+import * as helper from '../common/helper'
+import i18n from '../lang/i18n'
+import Location from '../models/Location'
+import LocationValue from '../models/LocationValue'
+import * as logger from '../common/logger'
 
 const router = express.Router()
 
@@ -91,6 +97,48 @@ router.get('/api/geocode/:address', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error geocoding address:', error)
     return res.status(500).json({ error: 'Failed to geocode address' })
+  }
+})
+
+// Create a location from Google Maps data (no authentication required)
+router.post('/api/create-location-from-google-maps', async (req: Request, res: Response) => {
+  try {
+    const { googleMapsId, name, latitude, longitude } = req.body
+    
+    if (!googleMapsId || !name || latitude === undefined || longitude === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' })
+    }
+    
+    // Check if location with this Google Maps ID already exists
+    const existingLocation = await Location.findOne({ googleMapsId })
+    
+    if (existingLocation) {
+      logger.info(`[googleMaps.createLocationFromGoogleMaps] Location with Google Maps ID ${googleMapsId} already exists`)
+      return res.json(existingLocation)
+    }
+    
+    // Create location value for the default language
+    const locationValue = new LocationValue({
+      language: 'en',
+      value: name,
+    })
+    await locationValue.save()
+    
+    // Create the location
+    const location = new Location({
+      googleMapsId,
+      values: [locationValue.id],
+      latitude,
+      longitude,
+    })
+    
+    await location.save()
+    logger.info(`[googleMaps.createLocationFromGoogleMaps] Created new location: ${location._id} with name: ${name}`)
+    
+    return res.json(location)
+  } catch (err) {
+    logger.error(`[googleMaps.createLocationFromGoogleMaps] ${i18n.t('DB_ERROR')}`, err)
+    return res.status(400).send(i18n.t('DB_ERROR') + err)
   }
 })
 

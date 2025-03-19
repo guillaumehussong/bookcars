@@ -50,7 +50,7 @@ const ReviewsDialog = ({
   const [page, setPage] = useState<number>(1)
   const [totalRecords, setTotalRecords] = useState<number>(0)
   const [fetchingMore, setFetchingMore] = useState<boolean>(false)
-  const [reviewSource, setReviewSource] = useState<ReviewSource>('all')
+  const [reviewSource, setReviewSource] = useState<ReviewSource>('website')
   const [supplierName, setSupplierName] = useState<string>('')
   const pageSize = 10
 
@@ -62,11 +62,8 @@ const ReviewsDialog = ({
       setTotalRecords(0)
       setLoading(true)
       
-      // Log the API key usage
-      console.log('Dialog opened, will use Google Maps API for supplier reviews')
-      
-      // Set default review source to 'all' regardless of type
-      setReviewSource('all')
+      // Set default review source based on type
+      setReviewSource(supplierId ? 'google' : 'website')
       
       fetchReviews()
       
@@ -75,8 +72,6 @@ const ReviewsDialog = ({
         // Try to get the supplier name from the URL or a default value
         const supplierNameFromUrl = new URLSearchParams(window.location.search).get('supplier')
         const supplierName = supplierNameFromUrl || 'Good Cars' // Use 'Good Cars' as fallback
-        console.log('Directly fetching Google reviews with supplier name:', supplierName)
-        console.log('Using supplier ID:', supplierId)
         fetchGoogleReviews(supplierId, supplierName)
       }
     } else {
@@ -91,7 +86,7 @@ const ReviewsDialog = ({
     setTotalRecords(0)
     setLoading(true)
     setFetchingMore(false)
-    setReviewSource('all')
+    setReviewSource('website')
     setSupplierName('')
     setLoadingGoogleReviews(false)
   }
@@ -103,18 +98,13 @@ const ReviewsDialog = ({
       setLoading(true)
       let result
 
-      console.log('Fetching reviews for:', carId || supplierId)
-
       if (carId) {
         result = await ReviewService.getCarReviews(carId, page, pageSize)
       } else if (supplierId) {
         result = await ReviewService.getSupplierReviews(supplierId, page, pageSize)
       }
 
-      console.log('API result:', result)
-
       if (result && result.length > 0 && result[0].resultData) {
-        console.log('Setting reviews:', result[0].resultData)
         setReviews(result[0].resultData)
         
         // Get supplier name for Google reviews if this is a supplier review
@@ -131,7 +121,6 @@ const ReviewsDialog = ({
           setTotalRecords(result[0].pageInfo[0].totalRecords)
         }
       } else {
-        console.log('No reviews found in the result')
         setReviews([])
         
         // Still try to fetch Google reviews even if there are no website reviews
@@ -139,13 +128,12 @@ const ReviewsDialog = ({
           // Try to get supplier name from URL or use default
           const supplierNameFromUrl = new URLSearchParams(window.location.search).get('supplier')
           const supplierName = supplierNameFromUrl || 'Good Cars' // Use 'Good Cars' as fallback
-          console.log('No website reviews, but trying Google reviews with supplier name:', supplierName)
           fetchGoogleReviews(supplierId, supplierName)
         }
       }
       setLoading(false)
     } catch (err) {
-      console.error('Error fetching reviews:', err)
+      helper.error(err)
       setReviews([])
       setLoading(false)
     }
@@ -154,35 +142,21 @@ const ReviewsDialog = ({
   const fetchGoogleReviews = async (supplierId: string, name: string) => {
     try {
       setLoadingGoogleReviews(true)
-      console.log('Fetching Google reviews for supplier:', name, 'with ID:', supplierId)
       
       // Normalize the supplier name a bit (trim, etc.)
       const normalizedName = name.trim()
       if (!normalizedName) {
-        console.warn('Empty supplier name provided, unable to fetch Google reviews')
         setGoogleReviews([])
         setLoadingGoogleReviews(false)
         return
       }
       
-      // Log the known place IDs
-      console.log('Known place IDs mapping:', GoogleMapsService.KNOWN_PLACE_IDS)
-      
-      // Log if the supplier name is in the known IDs
-      if (normalizedName in GoogleMapsService.KNOWN_PLACE_IDS) {
-        console.log(`Found known place ID for ${normalizedName}: ${GoogleMapsService.KNOWN_PLACE_IDS[normalizedName]}`)
-      } else {
-        console.log(`No known place ID for ${normalizedName}, will need to search for it`)
-      }
-      
       const result = await GoogleMapsService.getSupplierGoogleReviews(supplierId, normalizedName)
-      console.log('Google reviews result raw:', result)
-      console.log('Number of Google reviews returned:', result ? result.length : 0)
       
       setGoogleReviews(result)
       setLoadingGoogleReviews(false)
     } catch (err) {
-      console.error('Error fetching Google reviews:', err)
+      helper.error(err)
       setGoogleReviews([])
       setLoadingGoogleReviews(false)
     }
@@ -225,9 +199,6 @@ const ReviewsDialog = ({
     }
   }
 
-  console.log('Current reviews state:', reviews)
-  console.log('Current Google reviews state:', googleReviews)
-
   // Filter reviews based on the selected source
   const displayedReviews = reviewSource === 'website' ? reviews : 
                           reviewSource === 'google' ? [] : 
@@ -262,19 +233,7 @@ const ReviewsDialog = ({
               onChange={handleReviewSourceChange}
               aria-label={strings.REVIEW_SOURCE}
               size="small"
-              sx={{
-                '& .MuiToggleButton-root.Mui-selected': {
-                  backgroundColor: '#FF9800', // Orange
-                  color: '#FFFFFF', // White
-                  '&:hover': {
-                    backgroundColor: '#F57C00', // Darker orange on hover
-                  }
-                }
-              }}
             >
-              <ToggleButton value="all" aria-label={strings.ALL_REVIEWS}>
-                {strings.ALL_REVIEWS}
-              </ToggleButton>
               <ToggleButton value="website" aria-label={strings.WEBSITE_REVIEWS}>
                 {strings.WEBSITE_REVIEWS}
               </ToggleButton>
@@ -283,6 +242,9 @@ const ReviewsDialog = ({
                   <GoogleIcon fontSize="small" sx={{ mr: 1 }} />
                   {strings.GOOGLE_REVIEWS}
                 </Box>
+              </ToggleButton>
+              <ToggleButton value="all" aria-label={strings.ALL_REVIEWS}>
+                {strings.ALL_REVIEWS}
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>

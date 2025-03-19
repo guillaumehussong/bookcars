@@ -6,6 +6,7 @@ import { strings as commonStrings } from '@/lang/common'
 import * as bookcarsTypes from ':bookcars-types'
 import env from '@/config/env.config'
 import * as LocationService from '@/services/LocationService'
+import * as helper from '@/common/helper'
 
 // Position approximative du centre du Salvador
 const SALVADOR_CENTER = { lat: 13.7942, lng: -88.8965 }
@@ -147,8 +148,6 @@ const GoogleMapsLocationField = ({
       // Ajouter également l'emplacement au cache du service
       // Utiliser l'ID Google Maps existant s'il est disponible
       LocationService.cacheLocation(location, location.googleMapsId)
-      
-      console.log(`Saved recent location: ${location._id}, name: ${location.name}, Google Maps ID: ${location.googleMapsId || 'N/A'}`)
     } catch (error) {
       console.error('Error saving recent location:', error)
     }
@@ -199,55 +198,56 @@ const GoogleMapsLocationField = ({
         placeId: prediction.place_id,
         fields: ['name', 'geometry', 'formatted_address']
       },
-      (place: any, status: string) => {
+      async (place: any, status: string) => {
         setLoading(false)
-        if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-          // Générer un ID compatible avec MongoDB au lieu d'utiliser place_id
-          const generatedId = generateMongoId();
-          
-          const newLocation: bookcarsTypes.LocationWithCoordinates = {
-            _id: generatedId,
-            name: place.name,
-            latitude: place.geometry.location.lat(),
-            longitude: place.geometry.location.lng(),
-            googleMapsId: prediction.place_id
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
+          try {
+            // First get coordinates for the location
+            const lat = place.geometry.location.lat();
+            const lng = place.geometry.location.lng();
+            const locationName = place.name || place.formatted_address.split(',')[0];
+            
+            // Use the full formatted address if available
+            const fullAddress = place.formatted_address || locationName;
+            
+            // Then create the location, passing the coordinates directly
+            const newLocation = await LocationService.createLocationFromGoogleMapsId(
+              prediction.place_id,
+              fullAddress,
+              lat,
+              lng
+            )
+
+            // Update the location coordinates from our local data
+            const locationData: bookcarsTypes.LocationWithCoordinates = {
+              _id: newLocation._id,
+              name: newLocation.name ?? '',
+              latitude: lat, // Use the coordinates from the place details
+              longitude: lng,
+              googleMapsId: prediction.place_id
+            }
+
+            // Update the input and notify parent with the location from the database
+            setInputValue(locationData.name ?? '') // Use nullish coalescing to handle undefined
+            onChange(locationData)
+
+            // Save to recent locations
+            saveRecentLocation(locationData)
+            setShowPredictions(false)
+          } catch (error) {
+            console.error('Error creating location:', error)
+            helper.error()
           }
-          
-          console.log(`Created new location with MongoDB ID: ${generatedId}, Google Maps ID: ${prediction.place_id}`);
-          
-          // Enregistrer dans le cache pour future utilisation, en incluant l'ID Google Maps
-          LocationService.cacheLocation(newLocation, prediction.place_id)
-          
-          setInputValue(place.name)
-          onChange(newLocation)
-          saveRecentLocation(newLocation)
-          setShowPredictions(false)
         } else {
-          console.error('Error getting place details:', status);
-          // Créer un emplacement même en cas d'erreur
-          const generatedId = generateMongoId();
-          const fallbackLocation: bookcarsTypes.LocationWithCoordinates = {
-            _id: generatedId,
-            name: prediction.description || 'Selected location',
-            latitude: 0,
-            longitude: 0,
-            googleMapsId: prediction.place_id
-          }
-          
-          console.log(`Created fallback location with MongoDB ID: ${generatedId}, Google Maps ID: ${prediction.place_id}`);
-          LocationService.cacheLocation(fallbackLocation, prediction.place_id)
-          
-          setInputValue(fallbackLocation.name || '')
-          onChange(fallbackLocation)
-          saveRecentLocation(fallbackLocation)
-          setShowPredictions(false)
+          console.error('Error getting place details:', status)
+          helper.error()
         }
       }
     )
   }
 
   const handleRecentLocationClick = (location: bookcarsTypes.LocationWithCoordinates) => {
-    setInputValue(location.name || '')
+    setInputValue(location.name ?? '') // Use nullish coalescing to handle undefined
     onChange(location)
     setShowPredictions(false)
   }
@@ -263,69 +263,71 @@ const GoogleMapsLocationField = ({
   }
 
   const handleGetCurrentLocation = () => {
-    if (navigator.geolocation && geocoderService.current) {
-      setGettingCurrentLocation(true)
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords
-          
-          // Utiliser le Geocoder pour obtenir l'adresse à partir des coordonnées
-          geocoderService.current.geocode(
-            { location: { lat: latitude, lng: longitude } },
-            (results: any[], status: string) => {
-              setGettingCurrentLocation(false)
-              if (status === 'OK' && results[0]) {
-                const place = results[0]
-                
-                // Générer un ID compatible avec MongoDB au lieu d'utiliser place_id
-                const generatedId = generateMongoId();
-                
-                const newLocation: bookcarsTypes.LocationWithCoordinates = {
-                  _id: generatedId,
-                  name: place.formatted_address.split(',')[0], // Premier élément de l'adresse
-                  latitude,
-                  longitude,
-                  googleMapsId: place.place_id
-                }
-                
-                console.log(`Created new location from current position with MongoDB ID: ${generatedId}, Google Maps ID: ${place.place_id || 'N/A'}`);
-                
-                // Enregistrer dans le cache pour future utilisation, en incluant l'ID Google Maps si disponible
-                LocationService.cacheLocation(newLocation, place.place_id)
-                
-                setInputValue(newLocation.name || '')
-                onChange(newLocation)
-                saveRecentLocation(newLocation)
-              } else {
-                console.error('Geocoder failed due to:', status)
-                // Créer un emplacement même en cas d'erreur
-                const generatedId = generateMongoId();
-                const fallbackLocation: bookcarsTypes.LocationWithCoordinates = {
-                  _id: generatedId,
-                  name: 'Current location',
+    if (!navigator.geolocation) {
+      console.error('Geolocation is not supported by this browser.')
+      return
+    }
+
+    setGettingCurrentLocation(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords
+        geocoderService.current.geocode(
+          {
+            location: { lat: latitude, lng: longitude }
+          },
+          async (results: any[], status: string) => {
+            setGettingCurrentLocation(false)
+            if (status === 'OK' && results[0]) {
+              const place = results[0]
+              try {
+                // Create a location using the Google Maps reverse geocoding result
+                const placeId = place.place_id || `temp_${Date.now()}`
+                const formattedAddress = place.formatted_address || 'Current Location'
+                const newLocation = await LocationService.createLocationFromGoogleMapsId(
+                  placeId,
+                  formattedAddress,
                   latitude,
                   longitude
+                )
+
+                const locationData: bookcarsTypes.LocationWithCoordinates = {
+                  _id: newLocation._id,
+                  name: newLocation.name || formattedAddress,
+                  latitude,
+                  longitude,
+                  googleMapsId: placeId
                 }
-                
-                console.log(`Created fallback location from current position with MongoDB ID: ${generatedId}`);
-                LocationService.cacheLocation(fallbackLocation)
-                
-                setInputValue(fallbackLocation.name || '')
-                onChange(fallbackLocation)
-                saveRecentLocation(fallbackLocation)
+
+                setInputValue(locationData.name ?? formattedAddress)
+                onChange(locationData)
+                saveRecentLocation(locationData)
+              } catch (error) {
+                console.error('Error creating location from current position:', error)
+                const formattedAddress = place.formatted_address || 'Current Location'
+                const newLocation: bookcarsTypes.LocationWithCoordinates = {
+                  _id: generateMongoId(),
+                  name: formattedAddress,
+                  latitude: Number(latitude) || 0,
+                  longitude: Number(longitude) || 0,
+                  googleMapsId: place.place_id || `temp_${Date.now()}`
+                }
+                setInputValue(newLocation.name ?? formattedAddress)
+                onChange(newLocation)
+                saveRecentLocation(newLocation)
               }
+            } else {
+              helper.error()
             }
-          )
-        },
-        (error) => {
-          setGettingCurrentLocation(false)
-          console.error('Error getting current location:', error)
-          // Informer l'utilisateur de l'erreur
-          alert(commonStrings.LOCATION_ERROR)
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      )
-    }
+          }
+        )
+      },
+      (error) => {
+        setGettingCurrentLocation(false)
+        console.error('Error getting current location:', error)
+        helper.error()
+      }
+    )
   }
 
   return (

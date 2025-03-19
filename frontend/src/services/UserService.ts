@@ -277,7 +277,7 @@ export const getCurrentUser = (): bookcarsTypes.User | null => {
 }
 
 /**
- * Get User by ID.
+ * Get a user by ID.
  *
  * @param {string} id
  * @returns {Promise<bookcarsTypes.User|null>}
@@ -293,7 +293,7 @@ export const getUser = (id?: string): Promise<bookcarsTypes.User | null> => {
       .catch((error) => {
         // Handle authentication errors gracefully
         if (error.response && error.response.status === 403) {
-          console.log(`Authentication required to get user ${id}. User not logged in.`);
+          // Authentication error
         } else {
           console.error(`Error getting user ${id}:`, error);
         }

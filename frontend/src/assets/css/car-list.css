@@ -4,6 +4,10 @@
   padding-bottom: 60px;
   width: 100%;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 300px;
 }
 
 /* Style pour le titre principal */
@@ -36,6 +40,8 @@
   margin: 40px 0;
   display: flex;
   justify-content: center;
+  width: 100%;
+  height: 100px;
 }
 
 /* Style pour le message de liste vide */
@@ -44,6 +50,8 @@
   text-align: center;
   border-radius: 8px;
   background-color: #f9f9f9;
+  width: 100%;
+  max-width: 800px;
 }
 
 /* Style pour la section car-list */
@@ -53,11 +61,14 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  align-items: center;
 }
 
 /* Style pour les conteneurs de voitures */
 .car-container {
   width: 100%;
+  max-width: 800px;
+  margin-bottom: 20px;
 }
 
 /* Style pour la pagination */
@@ -81,6 +92,10 @@
   .car-list {
     max-width: 100%;
   }
+  
+  .car-container {
+    max-width: 100%;
+  }
 }
 
 @media (width <= 600px) {
@@ -96,6 +111,5 @@
   .car-list-container .mui-typography-subtitle1 {
     font-size: 14px;
   }
-  
 }
 

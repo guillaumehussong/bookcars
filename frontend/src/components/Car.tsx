@@ -46,11 +46,13 @@ interface CarProps {
   dropOffLocation?: string
   from: Date
   to: Date
-  pickupLocationName?: string
-  distance?: number
-  hideSupplier?: boolean
-  sizeAuto?: boolean
+  hideCompany?: boolean
   hidePrice?: boolean
+  className?: string
+  onReviewsClick?: (carId: string, supplierId?: string, supplierName?: string) => void
+  loading?: boolean
+  language?: string
+  days?: number
 }
 
 const Car = ({
@@ -60,14 +62,18 @@ const Car = ({
   dropOffLocation,
   from,
   to,
-  hideSupplier,
-  sizeAuto,
+  hideCompany,
   hidePrice,
+  className,
+  onReviewsClick,
+  loading,
+  language,
+  days,
 }: CarProps) => {
+  console.log('Car component rendering with car:', car)
+  
   const navigate = useNavigate()
 
-  const [language, setLanguage] = useState('')
-  const [days, setDays] = useState(0)
   const [totalPrice, setTotalPrice] = useState(0)
   const [cancellation, setCancellation] = useState('')
   const [amendments, setAmendments] = useState('')
@@ -75,20 +81,14 @@ const Car = ({
   const [collisionDamageWaiver, setCollisionDamageWaiver] = useState('')
   const [fullInsurance, setFullInsurance] = useState('')
   const [additionalDriver, setAdditionalDriver] = useState('')
-  const [loading, setLoading] = useState(true)
   const [openReviewsDialog, setOpenReviewsDialog] = useState<boolean>(false)
   const [reviewType, setReviewType] = useState<'car' | 'supplier'>('car')
-
-  useEffect(() => {
-    setLanguage(UserService.getLanguage())
-  }, [])
 
   useEffect(() => {
     const fetchPrice = async () => {
       if (from && to) {
         const _totalPrice = await PaymentService.convertPrice(bookcarsHelper.calculateTotalPrice(car, from as Date, to as Date))
         setTotalPrice(_totalPrice)
-        setDays(bookcarsHelper.days(from, to))
       }
     }
 
@@ -97,12 +97,12 @@ const Car = ({
 
   useEffect(() => {
     const init = async () => {
-      const _cancellation = (car.cancellation > -1 && (await helper.getCancellation(car.cancellation, language))) || ''
-      const _amendments = (car.amendments > -1 && (await helper.getAmendments(car.amendments, language))) || ''
-      const _theftProtection = (car.theftProtection > -1 && (await helper.getTheftProtection(car.theftProtection, language))) || ''
-      const _collisionDamageWaiver = (car.collisionDamageWaiver > -1 && (await helper.getCollisionDamageWaiver(car.collisionDamageWaiver, language))) || ''
-      const _fullInsurance = (car.fullInsurance > -1 && (await helper.getFullInsurance(car.fullInsurance, language))) || ''
-      const _additionalDriver = (car.additionalDriver > -1 && (await helper.getAdditionalDriver(car.additionalDriver, language))) || ''
+      const _cancellation = (car.cancellation > -1 && (await helper.getCancellation(car.cancellation, language ?? 'en'))) || ''
+      const _amendments = (car.amendments > -1 && (await helper.getAmendments(car.amendments, language ?? 'en'))) || ''
+      const _theftProtection = (car.theftProtection > -1 && (await helper.getTheftProtection(car.theftProtection, language ?? 'en'))) || ''
+      const _collisionDamageWaiver = (car.collisionDamageWaiver > -1 && (await helper.getCollisionDamageWaiver(car.collisionDamageWaiver, language ?? 'en'))) || ''
+      const _fullInsurance = (car.fullInsurance > -1 && (await helper.getFullInsurance(car.fullInsurance, language ?? 'en'))) || ''
+      const _additionalDriver = (car.additionalDriver > -1 && (await helper.getAdditionalDriver(car.additionalDriver, language ?? 'en'))) || ''
 
       setCancellation(_cancellation)
       setAmendments(_amendments)
@@ -110,16 +110,33 @@ const Car = ({
       setCollisionDamageWaiver(_collisionDamageWaiver)
       setFullInsurance(_fullInsurance)
       setAdditionalDriver(_additionalDriver)
-      setLoading(false)
 
       if (!hidePrice) {
         const _totalPrice = await PaymentService.convertPrice(bookcarsHelper.calculateTotalPrice(car, from as Date, to as Date))
         setTotalPrice(_totalPrice)
       }
+
+      // Preload car image
+      if (car.image) {
+        try {
+          await helper.preloadImage(bookcarsHelper.joinURL(env.CDN_CARS, car.image))
+        } catch (e) {
+          console.warn('Failed to preload car image:', e)
+        }
+      }
+
+      // Preload supplier avatar if available
+      if (car.supplier && typeof car.supplier === 'object' && car.supplier.avatar) {
+        try {
+          await helper.preloadImage(bookcarsHelper.joinURL(env.CDN_USERS, car.supplier.avatar))
+        } catch (e) {
+          console.warn('Failed to preload supplier avatar:', e)
+        }
+      }
     }
 
     init()
-  }, [hidePrice]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [car, language]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const getExtraIcon = (option: string, extra: number) => {
     let available = false
@@ -151,31 +168,37 @@ const Car = ({
         : <InfoIcon className="extra-info" />
   }
 
-  const handleRatingClick = () => {
+  const handleRatingClick = (e: React.MouseEvent<HTMLElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
     if (car.rating && car.rating >= 1) {
-      console.log('Car ID in handleRatingClick:', car._id);
-      console.log('Car data:', car);
       setReviewType('car')
       setOpenReviewsDialog(true)
     }
   }
 
-  const handleSupplierClick = () => {
+  const handleSupplierClick = (e: React.MouseEvent<HTMLElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
     if (car.supplier && typeof car.supplier === 'object') {
-      console.log('Supplier ID in handleSupplierClick:', car.supplier._id);
-      console.log('Supplier name:', car.supplier.fullName);
-      
-      // Set supplier name in URL parameters to ensure it's available for Google reviews
       const params = new URLSearchParams(window.location.search);
       params.set('supplier', car.supplier.fullName);
       const newUrl = `${window.location.pathname}?${params.toString()}`;
       window.history.replaceState({}, '', newUrl);
       
-      // Log a message about using the real Google Maps API
-      console.log('Using real Google Maps API to fetch reviews for:', car.supplier.fullName);
-      
       setReviewType('supplier')
       setOpenReviewsDialog(true)
+    }
+  }
+
+  const handleReviewsClick = (e: React.MouseEvent<HTMLElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (onReviewsClick) {
+      onReviewsClick(car._id, car.supplier?._id, car.supplier?.fullName || 'Unknown')
     }
   }
 
@@ -186,21 +209,26 @@ const Car = ({
   const fr = language === 'fr'
 
   return (
-    <div key={car._id} className="car-container">
+    <div key={car._id} className={`car-container ${className || ''}`}>
       <article>
         <div className="car">
-          <img src={bookcarsHelper.joinURL(env.CDN_CARS, car.image)} alt={car.name} className="car-img" />
-          {!hideSupplier && car.supplier && (
+          <img 
+            src={car.image ? bookcarsHelper.joinURL(env.CDN_CARS, car.image) : '/images/car-placeholder.png'} 
+            alt={car.name} 
+            className="car-img" 
+            onError={(e) => { (e.target as HTMLImageElement).src = '/images/car-placeholder.png'; }}
+          />
+          {!hideCompany && car.supplier && typeof car.supplier === 'object' && (
             <div 
               className="car-supplier" 
-              style={sizeAuto ? { bottom: 10, cursor: 'pointer' } : { cursor: 'pointer' }} 
-              title={car.supplier.fullName}
+              style={{ cursor: 'pointer' }}
+              title={car.supplier.fullName || ''}
               onClick={handleSupplierClick}
             >
               <span className="car-supplier-logo">
-                <img src={bookcarsHelper.joinURL(env.CDN_USERS, car.supplier.avatar)} alt={car.supplier.fullName} />
+                <img src={(car.supplier.avatar && typeof car.supplier.avatar === 'string') ? bookcarsHelper.joinURL(env.CDN_USERS, car.supplier.avatar) : '/images/supplier-placeholder.png'} alt={car.supplier.fullName || ''} />
               </span>
-              <span className="car-supplier-info">{car.supplier.fullName}</span>
+              <span className="car-supplier-info">{car.supplier.fullName || ''}</span>
             </div>
           )}
           <div className="car-footer">
@@ -234,11 +262,11 @@ const Car = ({
             <div className="name">{car.name}</div>
             {!hidePrice && (
               <div className="price">
-                <span className="price-days">{helper.getDays(days)}</span>
-                <span className="price-main">{bookcarsHelper.formatPrice(totalPrice, commonStrings.CURRENCY, language)}</span>
+                <span className="price-days">{helper.getDays(days ?? 1)}</span>
+                <span className="price-main">{bookcarsHelper.formatPrice(totalPrice, commonStrings.CURRENCY, language ?? 'en')}</span>
                 <span className="price-day">
                   <span>{`${strings.PRICE_PER_DAY} `}</span>
-                  <span className="price-day-value">{bookcarsHelper.formatPrice(totalPrice / days, commonStrings.CURRENCY, language)}</span>
+                  <span className="price-day-value">{bookcarsHelper.formatPrice(totalPrice / (days ?? 1), commonStrings.CURRENCY, language ?? 'en')}</span>
                 </span>
                 {
                   car.comingSoon ? (

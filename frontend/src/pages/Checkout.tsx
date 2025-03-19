@@ -574,7 +574,6 @@ const Checkout = () => {
                       // pickupLocationName={pickupLocation.name}
                       // distance={distance}
                       hidePrice
-                      sizeAuto
                       onLoad={() => setLoadingPage(false)}
                       hideSupplier={env.HIDE_SUPPLIERS}
                     />

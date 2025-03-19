@@ -1,32 +1,27 @@
-import { Schema, model } from 'mongoose'
+import mongoose from 'mongoose'
 import * as bookcarsTypes from ':bookcars-types'
-import * as env from '../config/env.config'
 
-const reviewSchema = new Schema<env.Review>(
+const reviewSchema = new mongoose.Schema(
   {
     user: {
-      type: Schema.Types.ObjectId,
-      required: [true, "can't be blank"],
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      index: true,
+      required: [true, "can't be blank"],
     },
     booking: {
-      type: Schema.Types.ObjectId,
-      required: [true, "can't be blank"],
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'Booking',
-      index: true,
+      required: [true, "can't be blank"],
     },
     car: {
-      type: Schema.Types.ObjectId,
-      required: [true, "can't be blank"],
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'Car',
-      index: true,
+      required: [true, "can't be blank"],
     },
     supplier: {
-      type: Schema.Types.ObjectId,
-      required: [true, "can't be blank"],
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      index: true,
+      required: [true, "can't be blank"],
     },
     rating: {
       type: Number,
@@ -38,32 +33,22 @@ const reviewSchema = new Schema<env.Review>(
       type: String,
       trim: true,
     },
+    reply: {
+      type: String,
+      trim: true,
+    },
     status: {
       type: String,
-      enum: [
-        bookcarsTypes.ReviewStatus.Pending,
-        bookcarsTypes.ReviewStatus.Approved,
-        bookcarsTypes.ReviewStatus.Rejected,
-      ],
+      enum: Object.values(bookcarsTypes.ReviewStatus),
       default: bookcarsTypes.ReviewStatus.Pending,
-    },
-    reply: {
-      comment: {
-        type: String,
-        trim: true,
-      },
-      date: {
-        type: Date,
-      },
     },
   },
   {
     timestamps: true,
-    strict: true,
     collection: 'Review',
-  },
+  }
 )
 
-const Review = model<env.Review>('Review', reviewSchema)
+const Review = mongoose.model('Review', reviewSchema)
 
-export default Review 
+export { Review } 

@@ -53,7 +53,6 @@ const SearchForm = ({
   const [minPickupHoursError, setMinPickupHoursError] = useState(false)
   const [minRentalHoursError, setMinRentalHoursError] = useState(false)
   const [searchRadius, setSearchRadius] = useState(10) // Default search radius: 10km
-  const [exactLocationOnly, setExactLocationOnly] = useState(false) // Default: include nearby locations
 
   useEffect(() => {
     const _from = new Date()
@@ -171,9 +170,10 @@ const SearchForm = ({
   }
 
   const handleSameLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSameLocation(e.target.checked)
+    const checked = e.target.checked
+    setSameLocation(checked)
 
-    if (e.target.checked) {
+    if (checked && pickupLocation) {
       setDropOffLocation(pickupLocation)
     } else {
       setDropOffLocation(null)
@@ -187,29 +187,37 @@ const SearchForm = ({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
+    // Ensure dropOffLocation is set when sameLocation is true
+    if (sameLocation && pickupLocation && !dropOffLocation) {
+      setDropOffLocation(pickupLocation)
+    }
+
     if (!pickupLocation || !dropOffLocation || !from || !to || fromError || toError || minPickupHoursError || minRentalHoursError) {
       return
     }
 
-    setTimeout(navigate, 0, '/search', {
-      state: {
-        pickupLocationId: pickupLocation._id,
-        dropOffLocationId: dropOffLocation._id,
-        pickupLocationCoords: {
-          latitude: pickupLocation.latitude,
-          longitude: pickupLocation.longitude
-        },
-        dropOffLocationCoords: {
-          latitude: dropOffLocation.latitude,
-          longitude: dropOffLocation.longitude
-        },
-        from,
-        to,
-        ranges,
-        searchRadius,
-        exactLocationOnly,
+    const navigationState = {
+      pickupLocationId: pickupLocation._id,
+      dropOffLocationId: dropOffLocation._id,
+      pickupLocationCoords: {
+        latitude: pickupLocation.latitude,
+        longitude: pickupLocation.longitude
       },
-    })
+      dropOffLocationCoords: {
+        latitude: dropOffLocation.latitude,
+        longitude: dropOffLocation.longitude
+      },
+      from,
+      to,
+      ranges,
+      searchRadius,
+    }
+
+    setTimeout(() => {
+      navigate('/search', {
+        state: navigationState,
+      })
+    }, 0)
   }
 
   return (
@@ -304,17 +312,6 @@ const SearchForm = ({
       )}
       <FormControl className="chk-same-location">
         <FormControlLabel control={<Checkbox checked={sameLocation} onChange={handleSameLocationChange} />} label={strings.DROP_OFF} />
-      </FormControl>
-      <FormControl className="chk-exact-location">
-        <FormControlLabel 
-          control={
-            <Checkbox 
-              checked={exactLocationOnly} 
-              onChange={(e) => setExactLocationOnly(e.target.checked)} 
-            />
-          } 
-          label={strings.EXACT_LOCATION_ONLY || "Exact location only"} 
-        />
       </FormControl>
     </form>
   )

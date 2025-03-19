@@ -709,6 +709,7 @@ export interface Location extends Document {
   name?: string
   image?: string | null
   parkingSpots?: Types.ObjectId[] | null
+  googleMapsId?: string
 }
 
 /**
@@ -795,50 +796,4 @@ export interface Token extends Document {
   user: Types.ObjectId
   token: string
   expireAt?: Date
-}
-
-/**
- * Review Document.
- *
- * @export
- * @interface Review
- * @typedef {Review}
- * @extends {Document}
- */
-export interface Review extends Document {
-  user: Types.ObjectId
-  booking: Types.ObjectId
-  car: Types.ObjectId
-  supplier: Types.ObjectId
-  rating: number
-  comment?: string
-  status: string
-  reply?: {
-    comment: string
-    date: Date
-  }
-}
-
-/**
- * ReviewInfo.
- *
- * @export
- * @interface ReviewInfo
- * @typedef {ReviewInfo}
- */
-export interface ReviewInfo {
-  _id?: Types.ObjectId
-  user: UserInfo | Types.ObjectId | string
-  booking: Booking | Types.ObjectId | string
-  car: CarInfo | Types.ObjectId | string
-  supplier: UserInfo | Types.ObjectId | string
-  rating: number
-  comment?: string
-  status: string
-  reply?: {
-    comment: string
-    date: Date
-  }
-  createdAt?: Date
-  updatedAt?: Date
 }

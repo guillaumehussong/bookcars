@@ -61,8 +61,6 @@ const loadCachedLocations = (): void => {
         }
       }
     }
-    
-    console.log(`Loaded ${count} cached locations from localStorage`)
   } catch (e) {
     console.error('Error loading cached locations:', e)
   }
@@ -141,48 +139,58 @@ export const convertGoogleMapsIdToMongoId = (googleMapsId: string): string | nul
  * 
  * @param {string} googleMapsId 
  * @param {string} name 
+ * @param {number} latitude 
+ * @param {number} longitude
  * @returns {Promise<bookcarsTypes.Location>}
  */
-export const createLocationFromGoogleMapsId = async (googleMapsId: string, name?: string): Promise<bookcarsTypes.Location> => {
-  try {
-    console.log(`Creating new location from Google Maps ID: ${googleMapsId}`)
+export const createLocationFromGoogleMapsId = async (
+  googleMapsId: string, 
+  name: string = 'Unknown location',
+  latitude: number = 0,
+  longitude: number = 0
+): Promise<bookcarsTypes.Location> => {
+  try {    
+    // Call the API to create the location in the database
+    const response = await axiosInstance.post('/api/create-location-from-google-maps', {
+      googleMapsId,
+      name,
+      latitude,
+      longitude
+    });
     
-    // Générer un ID MongoDB
-    const mongoId = generateMongoId()
+    const newLocation = response.data;
     
-    // Si nous avons un nom, essayer de géocoder pour obtenir les coordonnées
-    let latitude = 0
-    let longitude = 0
-    let locationName = name || 'Unknown location'
-    
-    if (name) {
-      try {
-        const coords = await GoogleMapsService.geocodeAddress(name)
-        if (coords) {
-          latitude = coords.lat
-          longitude = coords.lng
-        }
-      } catch (error) {
-        console.error('Error geocoding location name:', error)
-      }
-    }
-    
-    // Créer un nouvel emplacement
-    const newLocation: bookcarsTypes.Location = {
-      _id: mongoId,
-      name: locationName,
+    // Create a LocationWithCoordinates object to match expected interface
+    const locationData: bookcarsTypes.LocationWithCoordinates = {
+      _id: newLocation._id,
+      name,
       latitude,
       longitude,
       googleMapsId
-    }
+    };
     
-    // Mettre en cache
-    cacheLocation(newLocation as bookcarsTypes.LocationWithCoordinates, googleMapsId)
+    // Cache the location
+    cacheLocation(locationData, googleMapsId);
     
-    return newLocation
+    return locationData;
   } catch (error) {
-    console.error('Error creating location from Google Maps ID:', error)
-    throw error
+    console.error('Error creating location from Google Maps ID:', error);
+    
+    // Fallback to creating a temporary location if the API call fails
+    const mongoId = generateMongoId();
+    
+    const locationData: bookcarsTypes.LocationWithCoordinates = {
+      _id: mongoId,
+      name,
+      latitude,
+      longitude,
+      googleMapsId
+    };
+    
+    // Cache the temporary location
+    cacheLocation(locationData, googleMapsId);
+    
+    return locationData;
   }
 }
 
@@ -198,12 +206,10 @@ export const getLocation = async (id: string): Promise<bookcarsTypes.Location> =
   try {
     // Si c'est un ID Google Maps, essayer de le convertir en ID MongoDB
     if (isGoogleMapsId(id)) {
-      console.log(`Handling Google Maps ID: ${id}`)
       
       // Vérifier si nous avons déjà un mapping pour cet ID
       const mongoId = convertGoogleMapsIdToMongoId(id)
       if (mongoId) {
-        console.log(`Converted Google Maps ID ${id} to MongoDB ID ${mongoId}`)
         id = mongoId
       } else {
         // Si on n'a pas de mapping, chercher dans le localStorage par googleMapsId
@@ -213,7 +219,6 @@ export const getLocation = async (id: string): Promise<bookcarsTypes.Location> =
             try {
               const location = JSON.parse(localStorage.getItem(key) || '{}')
               if (location.googleMapsId === id) {
-                console.log(`Found location in localStorage by Google Maps ID: ${id}`)
                 return location
               }
             } catch (e) {
@@ -221,164 +226,234 @@ export const getLocation = async (id: string): Promise<bookcarsTypes.Location> =
             }
           }
         }
-        
-        // Si nous n'avons pas trouvé l'emplacement, en créer un nouveau
-        console.log(`No cached location found for Google Maps ID: ${id}, creating a new one`)
-        return await createLocationFromGoogleMapsId(id)
       }
     }
     
-    // Vérifier si l'emplacement est en cache
+    // Vérifier si nous avons l'emplacement dans le cache local
     if (locationCache[id]) {
-      console.log(`Found location in memory cache: ${id}`)
       return locationCache[id]
     }
-    
-    // Vérifier dans le localStorage
-    const cachedLocation = localStorage.getItem(`location_${id}`)
-    if (cachedLocation) {
-      try {
-        const location = JSON.parse(cachedLocation)
-        locationCache[id] = location
-        console.log(`Found location in localStorage: ${id}`)
-        return location
-      } catch (e) {
-        console.error('Error parsing cached location:', e)
-      }
-    }
-    
-    // Sinon, essayer de le récupérer depuis l'API
-    try {
-      console.log(`Fetching location from API: ${id}`)
-      const response = await axiosInstance.get(
-        `/api/location/${encodeURIComponent(id)}/${UserService.getLanguage()}`
-      )
-      
-      // Mettre en cache le résultat
-      const location = response.data
-      if (location) {
-        locationCache[id] = location
-        localStorage.setItem(`location_${id}`, JSON.stringify(location))
-      }
-      
-      return location
-    } catch (apiError) {
-      console.error(`API error fetching location with ID ${id}:`, apiError)
-      
-      // Afficher plus d'informations sur l'erreur
-      console.log('Error type:', typeof apiError)
-      if (apiError && typeof apiError === 'object') {
-        console.log('Error has message property:', 'message' in apiError)
-        if ('message' in apiError) {
-          console.log('Error message:', (apiError as any).message)
-          console.log('Error message type:', typeof (apiError as any).message)
-        }
-      }
-      
-      // Si c'est une erreur de connexion, essayer de créer un emplacement temporaire
-      // Vérifier si l'erreur est une erreur Axios avec un message "Network Error"
-      if (apiError && 
-          typeof apiError === 'object' && 
-          'message' in apiError && 
-          typeof (apiError as any).message === 'string' && 
-          (apiError as any).message === 'Network Error') {
-        console.log(`Network error, creating temporary location for ID: ${id}`)
-        
-        // Créer un emplacement temporaire avec l'ID fourni
-        const tempLocation: bookcarsTypes.Location = {
-          _id: id,
-          name: `Location ${id.substring(0, 8)}...`,
-        }
-        
-        // Mettre en cache
-        locationCache[id] = tempLocation
-        localStorage.setItem(`location_${id}`, JSON.stringify(tempLocation))
-        
-        return tempLocation
-      }
-      
-      throw apiError
-    }
+
+    // Si ce n'est pas dans le cache ou si c'est un véritable ID MongoDB, récupérer depuis l'API
+    const res = await axiosInstance.get(`/api/location/${id}/${UserService.getLanguage()}`)
+    return res.data
   } catch (error) {
-    console.error(`Error in getLocation for ID ${id}:`, error)
+    console.error('Error getting location by ID:', error)
+    throw error
+  }
+}
+
+/**
+ * Cache a location in memory and localStorage
+ * 
+ * @param {bookcarsTypes.Location} location 
+ * @param {string} googleMapsId Optional Google Maps ID to create mapping
+ */
+export const cacheLocation = (location: bookcarsTypes.Location, googleMapsId?: string): void => {
+  try {
+    if (!location._id) {
+      return
+    }
     
-    // Si l'emplacement n'est pas trouvé dans la base de données, vérifier le cache local
-    if (isMongoId(id)) {
-      // Chercher dans le localStorage
-      const cachedLocation = localStorage.getItem(`location_${id}`)
-      if (cachedLocation) {
-        try {
-          const location = JSON.parse(cachedLocation)
-          locationCache[id] = location
-          console.log(`Recovered location from localStorage after error: ${id}`)
-          return location
-        } catch (e) {
-          console.error('Error parsing cached location:', e)
-        }
+    // Stocker dans le cache mémoire
+    locationCache[location._id] = location
+    
+    // Si nous avons un ID Google Maps, créer un mapping
+    if (googleMapsId) {
+      googleMapsToMongoIdMap[googleMapsId] = location._id
+      
+      // Ajouter l'ID Google Maps à l'objet location si ce n'est pas déjà fait
+      if (!location.googleMapsId) {
+        location.googleMapsId = googleMapsId
       }
     }
     
-    // Créer un emplacement temporaire en dernier recours
-    console.log(`Creating fallback temporary location for ID: ${id}`)
-    const fallbackLocation: bookcarsTypes.Location = {
-      _id: id,
-      name: `Temporary Location (${id.substring(0, 6)}...)`,
-    }
-    
-    // Mettre en cache
-    locationCache[id] = fallbackLocation
-    localStorage.setItem(`location_${id}`, JSON.stringify(fallbackLocation))
-    
-    return fallbackLocation
+    // Stocker dans le localStorage
+    localStorage.setItem(`location_${location._id}`, JSON.stringify(location))
+  } catch (error) {
+    console.error('Error caching location:', error)
   }
 }
 
 /**
- * Store a temporary location in the local cache
+ * Get locations. (client side filtering)
  * 
- * @param {bookcarsTypes.LocationWithCoordinates} location 
- * @param {string} googleMapsId - Optional Google Maps ID to associate with this location
+ * @param {string} keyword 
+ * @returns {Promise<bookcarsTypes.Location[]>}
  */
-export const cacheLocation = (location: bookcarsTypes.LocationWithCoordinates, googleMapsId?: string) => {
-  if (!location || !location._id) return
-  
-  // Ajouter l'ID Google Maps si fourni
-  const locationToCache = {
-    ...location,
-    googleMapsId: googleMapsId || location.googleMapsId
-  }
-  
-  // Stocker dans le cache en mémoire
-  locationCache[location._id] = locationToCache as bookcarsTypes.Location
-  
-  // Si nous avons un ID Google Maps, créer un mapping
-  if (googleMapsId || locationToCache.googleMapsId) {
-    const gmapsId = googleMapsId || locationToCache.googleMapsId
-    if (gmapsId) {
-      googleMapsToMongoIdMap[gmapsId] = location._id
-      console.log(`Mapped Google Maps ID ${gmapsId} to MongoDB ID ${location._id}`)
+export const search = async (keyword: string): Promise<bookcarsTypes.Location[]> => {
+  try {
+    if (!keyword) {
+      return []
     }
+    
+    // Si le mot-clé ressemble à un ID (MongoDB ou Google Maps), essayer de récupérer directement
+    if (isMongoId(keyword) || isGoogleMapsId(keyword)) {
+      try {
+        const location = await getLocation(keyword)
+        return [location]
+      } catch (e) {
+        // Si on ne trouve pas l'emplacement par ID, continuer avec la recherche par mot-clé
+      }
+    }
+    
+    // D'abord chercher dans le cache local
+    const cachedResults = searchInCache(keyword)
+    if (cachedResults.length > 0) {
+      return cachedResults
+    }
+    
+    // Ensuite, chercher via l'API
+    const res = await axiosInstance.get(
+      `/api/locations/search/${UserService.getLanguage()}/?s=${encodeURIComponent(keyword)}`
+    )
+    
+    return res.data
+  } catch (error) {
+    console.error('Error searching locations:', error)
+    return []
   }
-  
-  // Stocker dans localStorage pour persister entre les rechargements de page
-  localStorage.setItem(`location_${location._id}`, JSON.stringify(locationToCache))
-  console.log(`Cached location: ${location._id}, name: ${location.name}`)
 }
 
 /**
- * Get Loaction ID by name (en).
+ * Search for locations in the local cache
+ * 
+ * @param {string} keyword 
+ * @returns {bookcarsTypes.Location[]}
+ */
+const searchInCache = (keyword: string): bookcarsTypes.Location[] => {
+  const normalizedKeyword = keyword.toLowerCase()
+  const results: bookcarsTypes.Location[] = []
+  
+  // Parcourir le cache et trouver les correspondances
+  Object.values(locationCache).forEach(location => {
+    if (location.name && location.name.toLowerCase().includes(normalizedKeyword)) {
+      results.push(location)
+    }
+  })
+  
+  return results
+}
+
+/**
+ * Rechercher des emplacements avec Google Places API
+ * 
+ * @param {string} keyword 
+ * @returns {Promise<bookcarsTypes.Location[]>}
+ */
+export const searchWithGooglePlaces = async (keyword: string): Promise<bookcarsTypes.Location[]> => {
+  try {
+    const predictions = await GoogleMapsService.searchPlaces(keyword)
+    return predictions.map(prediction => ({
+      _id: prediction.place_id, // Utiliser l'ID Google comme ID temporaire
+      name: prediction.description,
+      googleMapsId: prediction.place_id
+    }))
+  } catch (error) {
+    console.error('Error searching with Google Places:', error)
+    return []
+  }
+}
+
+/**
+ * Get a location by name.
  *
  * @param {string} name
  * @param {string} language
- * @returns {Promise<{ status: number, data: string }>}
+ * @returns {Promise<{status: number, data: string}>}
  */
-export const getLocationId = (name: string, language: string): Promise<{ status: number, data: string }> =>
+export const getLocationId = async (name: string, _language: string): Promise<{status: number, data: string}> => {
+  try {
+    // First try to find in the cache
+    const locations = Object.values(locationCache).filter(loc => loc.name === name)
+    if (locations.length > 0) {
+      return { status: 200, data: locations[0]._id }
+    }
+    
+    // Then search in the database
+    const res = await axiosInstance.get(`/api/location/name/${encodeURIComponent(name)}`)
+    if (res.status === 200 && res.data) {
+      return { status: 200, data: res.data._id }
+    }
+    
+    // If not found, create a new location
+    const newLocation = await create({ 
+      _id: generateMongoId(),
+      name
+    } as bookcarsTypes.Location)
+    return { status: 200, data: newLocation._id }
+  } catch (error) {
+    console.error(`Error getting location ID for ${name}:`, error)
+    return { status: 500, data: '' }
+  }
+}
+
+/**
+ * Create a location.
+ *
+ * @param {bookcarsTypes.Location} data
+ * @returns {Promise<bookcarsTypes.Location>}
+ */
+export const create = (data: bookcarsTypes.Location) => 
   axiosInstance
-    .get(
-      `/api/location-id/${encodeURIComponent(name)}/${language}`
+    .post(
+      '/api/create-location',
+      data
     )
-    .then((res) => ({ status: res.status, data: res.data }))
+    .then((res) => res.data)
     .catch(error => {
-      console.error('Error getting location ID:', error)
-      return { status: 500, data: '' }
+      console.error('Error creating location:', error)
+      throw error
     })
+
+/**
+ * Update a location.
+ *
+ * @param {bookcarsTypes.Location} data
+ * @returns {Promise<number>}
+ */
+export const update = (data: bookcarsTypes.Location) =>
+  axiosInstance
+    .put(
+      '/api/update-location',
+      data
+    )
+    .then((res) => res.data)
+    .catch(error => {
+      console.error('Error updating location:', error)
+      throw error
+    })
+
+/**
+ * Delete a location.
+ *
+ * @param {string} id
+ * @returns {Promise<number>}
+ */
+export const deleteLocation = (id: string) => 
+  axiosInstance
+    .delete(
+      `/api/delete-location/${id}`
+    )
+    .then((res) => res.data)
+    .catch(error => {
+      console.error('Error deleting location:', error)
+      throw error
+    })
+
+/**
+ * Convertit un emplacement brut (raw) en objet Location complet
+ * 
+ * @param {any} rawLocation 
+ * @returns {bookcarsTypes.Location}
+ */
+export const toLocation = (rawLocation: any): bookcarsTypes.Location => {
+  if (!rawLocation) return {} as bookcarsTypes.Location
+  
+  return {
+    _id: rawLocation._id || generateMongoId(),
+    name: rawLocation.name || '',
+    values: rawLocation.values || {},
+    googleMapsId: rawLocation.googleMapsId
+  }
+}

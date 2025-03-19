@@ -599,36 +599,23 @@ export const carOptionAvailable = (car: bookcarsTypes.Car | undefined, option: s
   car && option in car && ((car as unknown as Record<string, number>)[option]) > -1
 
 /**
- * Return [latitude, longitude] of user.
- *
- * @async
- * @returns {Promise<[number, number] | null>}
+ * Get user location.
+ * 
+ * @returns {Promise<[number, number]|null>}
  */
 export const getLocation = async (): Promise<[number, number] | null> => {
   try {
-    if (navigator.geolocation) {
+    if ('geolocation' in navigator) {
       const position: GeolocationPosition = await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject)
       })
       const { latitude, longitude } = position.coords
       return [latitude, longitude]
     }
-    console.log('Geolocation is not supported by this browser.')
+    return null
   } catch (err: any) {
-    switch (err.code) {
-      case err.PERMISSION_DENIED:
-        console.log('User denied the request for Geolocation:', err.message)
-        break
-      case err.POSITION_UNAVAILABLE:
-        console.log('Location information is unavailable:', err.message)
-        break
-      case err.TIMEOUT:
-        console.log('The request to get user location timed out:', err.message)
-        break
-      default:
-        console.log('An unknown geolocation error occurred:', err.message)
-        break
-    }
+    // Handle geolocation errors silently
+    return null
   }
 
   return null
@@ -694,4 +681,23 @@ export const getCarRange = (range: bookcarsTypes.CarRange) => {
     default:
       return ''
   }
+}
+
+/**
+ * Preload an image to prevent rendering issues
+ * @param {string} src 
+ * @returns {Promise<HTMLImageElement>}
+ */
+export const preloadImage = (src: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    if (!src) {
+      reject(new Error('No source provided'));
+      return;
+    }
+    
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(e);
+    img.src = src;
+  });
 }

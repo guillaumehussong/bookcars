@@ -29,6 +29,7 @@ import Map from '@/components/Map'
 // import Progress from '@/components/Progress'
 import ViewOnMapButton from '@/components/ViewOnMapButton'
 import MapDialog from '@/components/MapDialog'
+import Progress from '@/components/Progress'
 
 import '@/assets/css/search.css'
 import '../types/additional-types' // Importer les types additionnels
@@ -60,7 +61,6 @@ const Search = () => {
   const [seats, setSeats] = useState(-1)
   const [openMapDialog, setOpenMapDialog] = useState(false)
   const [searchRadius, setSearchRadius] = useState(10) // Default search radius: 10km
-  const [exactLocationOnly, setExactLocationOnly] = useState(false) // Default: include nearby locations
   const [showFilters, setShowFilters] = useState(false)
   const [networkError, setNetworkError] = useState(false)
   // const [loadingPage, setLoadingPage] = useState(true)
@@ -76,7 +76,6 @@ const Search = () => {
         // Définir tous les fournisseurs comme sélectionnés par défaut
         setSupplierIds(allIds)
       } catch (err) {
-        console.error('Failed to fetch suppliers:', err)
         if ((err as any)?.code === 'ERR_NETWORK') {
           setNetworkError(true)
         }
@@ -104,16 +103,13 @@ const Search = () => {
           seats,
           days: bookcarsHelper.days(from, to),
           searchRadius,
-          exactLocationOnly,
         }
 
         try {
           setNetworkError(false)
-          console.log('Fetching suppliers with payload:', JSON.stringify(payload))
           
           // Méthode standard
           const frontendSuppliers = await SupplierService.getFrontendSuppliers(payload)
-          console.log(`Retrieved ${frontendSuppliers.length} frontend suppliers`)
           
           if (frontendSuppliers.length > 0) {
             setSuppliers(frontendSuppliers)
@@ -121,13 +117,11 @@ const Search = () => {
             setSupplierIds(ids.filter(id => id !== undefined) as string[])
           } else {
             // Si aucun fournisseur n'est trouvé, essayer de récupérer tous les fournisseurs
-            console.log('No suppliers found, falling back to all suppliers')
             setSupplierIds(allSuppliersIds)
           }
           
           setLoading(false)
         } catch (err) {
-          console.error('Failed to fetch suppliers:', err)
           if ((err as any)?.code === 'ERR_NETWORK') {
             setNetworkError(true)
           }
@@ -139,6 +133,7 @@ const Search = () => {
     }
 
     if (from && to) {
+      setLoading(true)
       updateSuppliers()
     }
   }, [
@@ -158,7 +153,6 @@ const Search = () => {
     to,
     allSuppliersIds,
     searchRadius,
-    exactLocationOnly,
   ])
 
   const handleCarFilterSubmit = async (filter: bookcarsTypes.CarFilter) => {
@@ -234,30 +228,22 @@ const Search = () => {
     const { from: _from } = state
     const { to: _to } = state
     const { searchRadius: _searchRadius } = state
-    const { exactLocationOnly: _exactLocationOnly } = state
 
     if (!pickupLocationId || !dropOffLocationId || !_from || !_to) {
       setLoading(false)
       setNoMatch(true)
       return
     }
-
-    console.log(`Loading search with pickupLocationId: ${pickupLocationId}, dropOffLocationId: ${dropOffLocationId}`)
     
     // Set search parameters
     if (_searchRadius !== undefined) {
       setSearchRadius(_searchRadius)
-    }
-    
-    if (_exactLocationOnly !== undefined) {
-      setExactLocationOnly(_exactLocationOnly)
     }
 
     let _pickupLocation
     let _dropOffLocation
     try {
       _pickupLocation = await LocationService.getLocation(pickupLocationId)
-      console.log('Retrieved pickup location:', _pickupLocation)
 
       if (!_pickupLocation) {
         setLoading(false)
@@ -267,7 +253,6 @@ const Search = () => {
 
       if (dropOffLocationId !== pickupLocationId) {
         _dropOffLocation = await LocationService.getLocation(dropOffLocationId)
-        console.log('Retrieved dropoff location:', _dropOffLocation)
       } else {
         _dropOffLocation = _pickupLocation
       }
@@ -319,7 +304,6 @@ const Search = () => {
           setVisible(true)
         }
       } catch (error) {
-        console.error('Error fetching frontend suppliers:', error)
         // Utiliser tous les fournisseurs disponibles comme fallback
         setPickupLocation(_pickupLocation)
         setDropOffLocation(_dropOffLocation)
@@ -333,7 +317,6 @@ const Search = () => {
         }
       }
     } catch (err) {
-      console.error('Error in onLoad:', err)
       setLoading(false)
       // Même en cas d'erreur, essayer d'afficher l'interface si possible
       if (allSuppliersIds.length > 0) {
@@ -351,91 +334,99 @@ const Search = () => {
     <>
       <Layout onLoad={onLoad} strict={false}>
         {visible && supplierIds && pickupLocation && dropOffLocation && from && to && (
-          <div className="search">          
-            <div className="col-1">
-              {!loading && (
-                <>
-                  {((pickupLocation.latitude && pickupLocation.longitude)
-                    || (pickupLocation.parkingSpots && pickupLocation.parkingSpots.length > 0)) && (
-                      <Map
-                        position={[pickupLocation.latitude || 36.191113, pickupLocation.longitude || 44.009167]}
-                        initialZoom={pickupLocation.latitude && pickupLocation.longitude ? 10 : 2.5}
-                        locations={[pickupLocation]}
-                        parkingSpots={pickupLocation.parkingSpots}
-                        className="map"
-                      >
-                        <ViewOnMapButton onClick={() => setOpenMapDialog(true)} />
-                      </Map>
-                    )}
+          <>
+            {loading && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '50vh' }}>
+                <Progress />
+              </div>
+            )}
+            <div className="search" style={loading ? { display: 'none' } : undefined}>          
+              <div className="col-1">
+                {!loading && (
+                  <>
+                    {((pickupLocation.latitude && pickupLocation.longitude)
+                      || (pickupLocation.parkingSpots && pickupLocation.parkingSpots.length > 0)) && (
+                        <Map
+                          position={[pickupLocation.latitude || 36.191113, pickupLocation.longitude || 44.009167]}
+                          initialZoom={pickupLocation.latitude && pickupLocation.longitude ? 10 : 2.5}
+                          locations={[pickupLocation]}
+                          parkingSpots={pickupLocation.parkingSpots}
+                          className="map"
+                        >
+                          <ViewOnMapButton onClick={() => setOpenMapDialog(true)} />
+                        </Map>
+                      )}
 
-                  <CarFilter
-                    className="filter"
-                    pickupLocation={pickupLocation}
-                    dropOffLocation={dropOffLocation}
-                    from={from}
-                    to={to}
-                    collapse
-                    onSubmit={handleCarFilterSubmit}
-                  />
+                    <CarFilter
+                      className="filter"
+                      pickupLocation={pickupLocation}
+                      dropOffLocation={dropOffLocation}
+                      from={from}
+                      to={to}
+                      collapse
+                      onSubmit={handleCarFilterSubmit}
+                    />
 
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    startIcon={<FiltersIcon />}
-                    disableElevation
-                    fullWidth
-                    className="btn btn-filters"
-                    onClick={() => setShowFilters((prev) => !prev)}
-                  >
-                    {showFilters ? strings.HIDE_FILTERS : strings.SHOW_FILTERS}
-                  </Button>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<FiltersIcon />}
+                      disableElevation
+                      fullWidth
+                      className="btn btn-filters"
+                      onClick={() => setShowFilters((prev) => !prev)}
+                    >
+                      {showFilters ? strings.HIDE_FILTERS : strings.SHOW_FILTERS}
+                    </Button>
 
-                  {
-                    showFilters && (
-                      <>
-                        <SupplierFilter className="filter" suppliers={suppliers} onChange={handleSupplierFilterChange} />
-                        <CarRatingFilter className="filter" onChange={handleRatingFilterChange} />
-                        <CarRangeFilter className="filter" onChange={handleRangeFilterChange} />
-                        <CarMultimediaFilter className="filter" onChange={handleMultimediaFilterChange} />
-                        <CarSeatsFilter className="filter" onChange={handleSeatsFilterChange} />
-                        <CarSpecsFilter className="filter" onChange={handleCarSpecsFilterChange} />
-                        <CarType className="filter" onChange={handleCarTypeFilterChange} />
-                        <GearboxFilter className="filter" onChange={handleGearboxFilterChange} />
-                        <MileageFilter className="filter" onChange={handleMileageFilterChange} />
-                        <FuelPolicyFilter className="filter" onChange={handleFuelPolicyFilterChange} />
-                        <DepositFilter className="filter" onChange={handleDepositFilterChange} />
-                      </>
-                    )
-                  }
-                </>
-              )}
+                    {
+                      showFilters && (
+                        <>
+                          <SupplierFilter className="filter" suppliers={suppliers} onChange={handleSupplierFilterChange} />
+                          <CarRatingFilter className="filter" onChange={handleRatingFilterChange} />
+                          <CarRangeFilter className="filter" onChange={handleRangeFilterChange} />
+                          <CarMultimediaFilter className="filter" onChange={handleMultimediaFilterChange} />
+                          <CarSeatsFilter className="filter" onChange={handleSeatsFilterChange} />
+                          <CarSpecsFilter className="filter" onChange={handleCarSpecsFilterChange} />
+                          <CarType className="filter" onChange={handleCarTypeFilterChange} />
+                          <GearboxFilter className="filter" onChange={handleGearboxFilterChange} />
+                          <MileageFilter className="filter" onChange={handleMileageFilterChange} />
+                          <FuelPolicyFilter className="filter" onChange={handleFuelPolicyFilterChange} />
+                          <DepositFilter className="filter" onChange={handleDepositFilterChange} />
+                        </>
+                      )
+                    }
+                  </>
+                )}
+              </div>
+              <div className="col-2">
+                <CarList
+                  carSpecs={carSpecs}
+                  suppliers={supplierIds || []}
+                  carType={carType}
+                  gearbox={gearbox}
+                  mileage={mileage}
+                  fuelPolicy={fuelPolicy}
+                  deposit={deposit}
+                  pickupLocation={pickupLocation._id}
+                  dropOffLocation={dropOffLocation._id}
+                  loading={loading}
+                  from={from}
+                  to={to}
+                  ranges={ranges}
+                  multimedia={multimedia}
+                  rating={rating}
+                  seats={seats}
+                  searchRadius={searchRadius}
+                  hideSupplier={env.HIDE_SUPPLIERS}
+                  includeComingSoonCars
+                  onLoad={(data) => {
+                    console.log('CarList onLoad:', data);
+                  }}
+                />
+              </div>
             </div>
-            <div className="col-2">
-              <CarList
-                carSpecs={carSpecs}
-                suppliers={supplierIds || []}
-                carType={carType}
-                gearbox={gearbox}
-                mileage={mileage}
-                fuelPolicy={fuelPolicy}
-                deposit={deposit}
-                pickupLocation={pickupLocation._id}
-                dropOffLocation={dropOffLocation._id}
-                pickupLocationName={pickupLocation.name}
-                loading={loading}
-                from={from}
-                to={to}
-                ranges={ranges}
-                multimedia={multimedia}
-                rating={rating}
-                seats={seats}
-                searchRadius={searchRadius}
-                exactLocationOnly={exactLocationOnly}
-                hideSupplier={env.HIDE_SUPPLIERS}
-                includeComingSoonCars
-              />
-            </div>
-          </div>
+          </>
         )}
 
         <MapDialog

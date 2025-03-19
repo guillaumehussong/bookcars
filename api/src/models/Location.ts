@@ -5,7 +5,6 @@ const locationSchema = new Schema<env.Location>(
   {
     country: {
       type: Schema.Types.ObjectId,
-      required: [true, "can't be blank"],
       ref: 'Country',
       index: true,
     },
@@ -27,6 +26,10 @@ const locationSchema = new Schema<env.Location>(
     parkingSpots: {
       type: [Schema.Types.ObjectId],
       ref: 'ParkingSpot',
+    },
+    googleMapsId: {
+      type: String,
+      index: true,
     },
   },
   {
