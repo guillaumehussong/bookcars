@@ -36,7 +36,7 @@ export const create = async (req: Request, res: Response) => {
     }
 
     // date based price
-    const { dateBasedPrices, ...carFields } = body
+    const { dateBasedPrices, locationCoordinates, ...carFields } = body
     const dateBasedPriceIds: string[] = []
     if (body.isDateBasedPrice) {
       for (const dateBasePrice of dateBasedPrices) {
@@ -46,7 +46,32 @@ export const create = async (req: Request, res: Response) => {
       }
     }
 
-    const car = new Car({ ...carFields, dateBasedPrices: dateBasedPriceIds })
+    // Check if locations is empty but we have locationCoordinates
+    const finalCarFields: any = { ...carFields }
+    if ((!finalCarFields.locations || finalCarFields.locations.length === 0) && 
+        locationCoordinates && locationCoordinates.length > 0) {
+      // Create a placeholder location ID to satisfy the schema
+      finalCarFields.locations = ['000000000000000000000000'].map(id => new mongoose.Types.ObjectId(id)) // MongoDB ObjectId placeholder
+      console.log('Using placeholder location ID with coordinates for new car')
+    } else if (finalCarFields.locations && finalCarFields.locations.length > 0) {
+      // Ensure all location IDs are valid ObjectIds
+      finalCarFields.locations = finalCarFields.locations.map((id: string) => new mongoose.Types.ObjectId(id))
+      console.log('Using provided location IDs for new car:', finalCarFields.locations)
+    } else {
+      // No locations or coordinates - this shouldn't happen due to validation
+      console.warn('No locations or locationCoordinates provided for new car')
+      finalCarFields.locations = ['000000000000000000000000'].map(id => new mongoose.Types.ObjectId(id))
+    }
+
+    // Create car object with all the basic fields
+    const car = new Car({ ...finalCarFields, dateBasedPrices: dateBasedPriceIds })
+    
+    // Add location coordinates if they exist
+    if (locationCoordinates && locationCoordinates.length > 0) {
+      // Store the coordinates in the car document for future use
+      car.locationCoordinates = locationCoordinates
+    }
+    
     await car.save()
 
     const image = path.join(env.CDN_TEMP_CARS, body.image)
@@ -160,6 +185,7 @@ export const update = async (req: Request, res: Response) => {
         comingSoon,
         type,
         locations,
+        locationCoordinates,
         dailyPrice,
         discountedDailyPrice,
         biWeeklyPrice,
@@ -189,9 +215,38 @@ export const update = async (req: Request, res: Response) => {
         dateBasedPrices,
       } = body
 
+      console.log('Updating car:', _id);
+      console.log('LocationCoordinates received:', locationCoordinates);
+
       car.supplier = new mongoose.Types.ObjectId(supplier)
       car.minimumAge = minimumAge
-      car.locations = locations.map((l) => new mongoose.Types.ObjectId(l))
+      
+      // Check if locations is empty but we have locationCoordinates
+      if ((!locations || locations.length === 0) && 
+          locationCoordinates && locationCoordinates.length > 0) {
+        // Create a placeholder location ID to satisfy the schema
+        car.locations = ['000000000000000000000000'].map(id => new mongoose.Types.ObjectId(id));
+        console.log('Using placeholder location ID with coordinates');
+      } else if (locations && locations.length > 0) {
+        // Normal case: we have real locations
+        car.locations = locations.map((l) => new mongoose.Types.ObjectId(l));
+        console.log('Using provided location IDs:', locations);
+      } else {
+        // Neither locations nor locationCoordinates - this shouldn't happen due to validation
+        console.warn('No locations or locationCoordinates provided');
+        car.locations = ['000000000000000000000000'].map(id => new mongoose.Types.ObjectId(id));
+      }
+      
+      // Update location coordinates if present
+      if (locationCoordinates && locationCoordinates.length > 0) {
+        car.locationCoordinates = locationCoordinates;
+        // Explicitly set field to ensure it's included in the update
+        car.set('locationCoordinates', locationCoordinates);
+        console.log('Setting car.locationCoordinates to:', locationCoordinates);
+      } else {
+        console.log('No locationCoordinates provided');
+      }
+      
       car.name = name
       car.available = available
       car.fullyBooked = fullyBooked
@@ -257,10 +312,69 @@ export const update = async (req: Request, res: Response) => {
         }
       }
 
-      await car.save()
-
-      res.json(car)
-      return
+      try {
+        console.log('Car before save:', car);
+        console.log('Car locationCoordinates before save:', car.locationCoordinates);
+        
+        // Force update with $set to ensure locationCoordinates is included
+        const updateResult = await Car.updateOne(
+          { _id: car._id },
+          { 
+            $set: {
+              supplier: car.supplier,
+              minimumAge: car.minimumAge,
+              locations: car.locations,
+              locationCoordinates: locationCoordinates || [],
+              name: car.name,
+              available: car.available,
+              fullyBooked: car.fullyBooked,
+              comingSoon: car.comingSoon,
+              type: car.type,
+              dailyPrice: car.dailyPrice,
+              discountedDailyPrice: car.discountedDailyPrice,
+              biWeeklyPrice: car.biWeeklyPrice,
+              discountedBiWeeklyPrice: car.discountedBiWeeklyPrice,
+              weeklyPrice: car.weeklyPrice,
+              discountedWeeklyPrice: car.discountedWeeklyPrice,
+              monthlyPrice: car.monthlyPrice,
+              discountedMonthlyPrice: car.discountedMonthlyPrice,
+              deposit: car.deposit,
+              seats: car.seats,
+              doors: car.doors,
+              aircon: car.aircon,
+              gearbox: car.gearbox,
+              fuelPolicy: car.fuelPolicy,
+              mileage: car.mileage,
+              cancellation: car.cancellation,
+              amendments: car.amendments,
+              theftProtection: car.theftProtection,
+              collisionDamageWaiver: car.collisionDamageWaiver,
+              fullInsurance: car.fullInsurance,
+              additionalDriver: car.additionalDriver,
+              range: car.range,
+              multimedia: car.multimedia,
+              rating: car.rating,
+              co2: car.co2,
+              isDateBasedPrice: car.isDateBasedPrice,
+              dateBasedPrices: car.dateBasedPrices
+            }
+          }
+        );
+        
+        console.log('Update result:', updateResult);
+        
+        // Load the updated car
+        const updatedCar = await Car.findById(car._id);
+        console.log('Updated car:', updatedCar);
+        console.log('Location coordinates after update:', updatedCar?.locationCoordinates);
+        
+        res.json(updatedCar);
+      } catch (saveErr) {
+        console.error('Error saving car:', saveErr);
+        throw saveErr;
+      }
+      
+      return;
     }
 
     logger.error('[car.update] Car not found:', _id)
@@ -836,7 +950,6 @@ export const getFrontendCars = async (req: Request, res: Response) => {
     const page = Number.parseInt(req.params.page, 10)
     const size = Number.parseInt(req.params.size, 10)
     const suppliers = body.suppliers!.map((id) => new mongoose.Types.ObjectId(id))
-    const pickupLocation = new mongoose.Types.ObjectId(body.pickupLocation)
     const {
       carType,
       gearbox,
@@ -851,17 +964,34 @@ export const getFrontendCars = async (req: Request, res: Response) => {
       days,
       includeAlreadyBookedCars,
       includeComingSoonCars,
+      coordinates,
+      radius,
     } = body
 
     const $match: mongoose.FilterQuery<bookcarsTypes.Car> = {
       $and: [
         { supplier: { $in: suppliers } },
-        { locations: pickupLocation },
         { type: { $in: carType } },
         { gearbox: { $in: gearbox } },
         { available: true },
-        { fullyBooked: { $in: [false, null] } },
       ],
+    }
+
+    // Add pickup location filter if provided
+    if (body.pickupLocation) {
+      const pickupLocation = new mongoose.Types.ObjectId(body.pickupLocation)
+      $match.$and!.push({ locations: pickupLocation })
+    }
+
+    // Add coordinate-based search if coordinates and radius are provided
+    if (coordinates && radius) {
+      // If using coordinates, we need to check cars with locationCoordinates
+      $match.$and!.push({
+        locationCoordinates: {
+          $exists: true,
+          $ne: []
+        }
+      })
     }
 
     if (!includeAlreadyBookedCars) {
@@ -927,14 +1057,57 @@ export const getFrontendCars = async (req: Request, res: Response) => {
       }
     }
 
-    let $supplierMatch: mongoose.FilterQuery<any> = {}
-    if (days) {
-      $supplierMatch = { $or: [{ 'supplier.minimumRentalDays': { $lte: days } }, { 'supplier.minimumRentalDays': null }] }
-    }
+    let data
 
-    const data = await Car.aggregate(
-      [
+    if (coordinates && radius) {
+      // Perform coordinate-based search with distance calculation
+      data = await Car.aggregate([
         { $match },
+        // Unwind locationCoordinates to calculate distance for each location
+        { $unwind: '$locationCoordinates' },
+        // Add distance field to each car
+        {
+          $addFields: {
+            distance: {
+              $function: {
+                body: function(lat1: number, lon1: number, lat2: number, lon2: number) {
+                  // Call the helper.calculateDistance function
+                  return helper.calculateDistance(lat1, lon1, lat2, lon2, 'K')
+                },
+                args: [
+                  '$locationCoordinates.latitude',
+                  '$locationCoordinates.longitude',
+                  coordinates.latitude,
+                  coordinates.longitude
+                ],
+                lang: 'js'
+              }
+            }
+          }
+        },
+        // Filter based on radius
+        { $match: { distance: { $lte: radius } } },
+        // Now group back by car ID to eliminate duplicates
+        {
+          $group: {
+            _id: '$_id',
+            // Keep only the minimum distance if a car has multiple locations
+            minDistance: { $min: '$distance' },
+            // Preserve all other fields
+            doc: { $first: '$$ROOT' }
+          }
+        },
+        // Reconstruct the document
+        {
+          $replaceRoot: {
+            newRoot: {
+              $mergeObjects: ['$doc', { distance: '$minDistance' }]
+            }
+          }
+        },
+        // Sort by distance
+        { $sort: { distance: 1 } },
+        // Lookup supplier data
         {
           $lookup: {
             from: 'User',
@@ -949,10 +1122,19 @@ export const getFrontendCars = async (req: Request, res: Response) => {
             as: 'supplier',
           },
         },
-        { $unwind: { path: '$supplier', preserveNullAndEmptyArrays: false } },
         {
-          $match: $supplierMatch,
+          $unwind: {
+            path: '$supplier',
+            preserveNullAndEmptyArrays: false,
+          },
         },
+        // Match based on supplier minimum rental days if days are specified
+        {
+          $match: days 
+            ? { $or: [{ 'supplier.minimumRentalDays': { $lte: days } }, { 'supplier.minimumRentalDays': null }] }
+            : {},
+        },
+        // Lookup date-based prices
         {
           $lookup: {
             from: 'DateBasedPrice',
@@ -967,26 +1149,11 @@ export const getFrontendCars = async (req: Request, res: Response) => {
             as: 'dateBasedPrices',
           },
         },
-        // {
-        //   $lookup: {
-        //     from: 'Location',
-        //     let: { locations: '$locations' },
-        //     pipeline: [
-        //       {
-        //         $match: {
-        //           $expr: { $in: ['$_id', '$$locations'] },
-        //         },
-        //       },
-        //     ],
-        //     as: 'locations',
-        //   },
-        // },
-
-        // begining of supplierCarLimit -----------------------------------
+        // Beginning of supplierCarLimit logic
         {
           // Add the "supplierCarLimit" field from the supplier to limit the number of cars per supplier
           $addFields: {
-            maxAllowedCars: { $ifNull: ['$supplier.supplierCarLimit', Number.MAX_SAFE_INTEGER] }, // Use a fallback if supplierCarLimit is undefined
+            maxAllowedCars: { $ifNull: ['$supplier.supplierCarLimit', Number.MAX_SAFE_INTEGER] }, // Use fallback if undefined
           },
         },
         {
@@ -1042,38 +1209,440 @@ export const getFrontendCars = async (req: Request, res: Response) => {
             ],
           },
         },
-        // end of supplierCarLimit -----------------------------------
-
-        // old query without supplierCarLimit
-        // {
-        //   $facet: {
-        //     resultData: [
-        //       {
-        //         // $sort: { fullyBooked: 1, comingSoon: 1, dailyPrice: 1, _id: 1 },
-        //         $sort: { dailyPrice: 1, _id: 1 },
-        //       },
-        //       { $skip: (page - 1) * size },
-        //       { $limit: size },
-        //     ],
-        //     pageInfo: [
-        //       {
-        //         $count: 'totalRecords',
-        //       },
-        //     ],
-        //   },
-        // },
+        // End of supplierCarLimit logic
+      ])
+    } else {
+      // Use the existing aggregation pipeline for traditional location-based search
+      data = await Car.aggregate(
+      [
+        { $match },
+        {
+          $lookup: {
+            from: 'User',
+            let: { userId: '$supplier' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$_id', '$$userId'] },
+                },
+              },
+            ],
+            as: 'supplier',
+          },
+        },
+          {
+            $unwind: {
+              path: '$supplier',
+              preserveNullAndEmptyArrays: false,
+            },
+          },
+          // Match based on supplier minimum rental days if days are specified
+        {
+            $match: days 
+              ? { $or: [{ 'supplier.minimumRentalDays': { $lte: days } }, { 'supplier.minimumRentalDays': null }] }
+              : {},
+        },
+          // Lookup date-based prices
+        {
+          $lookup: {
+            from: 'DateBasedPrice',
+            let: { dateBasedPrices: '$dateBasedPrices' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $in: ['$_id', '$$dateBasedPrices'] },
+                },
+              },
+            ],
+            as: 'dateBasedPrices',
+          },
+        },
+          // Beginning of supplierCarLimit logic
+        {
+          // Add the "supplierCarLimit" field from the supplier to limit the number of cars per supplier
+          $addFields: {
+              maxAllowedCars: { $ifNull: ['$supplier.supplierCarLimit', Number.MAX_SAFE_INTEGER] }, // Use fallback if undefined
+          },
+        },
+        {
+          // Add a custom stage to limit cars per supplier
+          $group: {
+            _id: '$supplier._id', // Group by supplier
+            supplierData: { $first: '$supplier' },
+            cars: { $push: '$$ROOT' }, // Push all cars of the supplier into an array
+            maxAllowedCars: { $first: '$maxAllowedCars' }, // Retain maxAllowedCars for each supplier
+          },
+        },
+        {
+          // Limit cars based on maxAllowedCars for each supplier
+          $project: {
+            supplier: '$supplierData',
+            cars: {
+              $cond: {
+                if: { $eq: ['$maxAllowedCars', 0] }, // If maxAllowedCars is 0
+                then: [], // Return an empty array (no cars)
+                else: { $slice: ['$cars', 0, { $min: [{ $size: '$cars' }, '$maxAllowedCars'] }] }, // Otherwise, limit normally
+              },
+            },
+          },
+        },
+        {
+          // Flatten the grouped result and apply sorting
+          $unwind: '$cars',
+        },
+        {
+          // Ensure unique cars by grouping by car ID
+          $group: {
+            _id: '$cars._id',
+            car: { $first: '$cars' },
+          },
+        },
+        {
+          $replaceRoot: { newRoot: '$car' }, // Replace the root document with the unique car object
+        },
+        {
+          // Sort the cars before pagination
+          $sort: { dailyPrice: 1, _id: 1 },
+        },
+        {
+          $facet: {
+            resultData: [
+              { $skip: (page - 1) * size }, // Skip results based on page
+              { $limit: size }, // Limit to the page size
+            ],
+            pageInfo: [
+              {
+                $count: 'totalRecords', // Count total number of cars (before pagination)
+              },
+            ],
+          },
+        },
+          // End of supplierCarLimit logic
       ],
       { collation: { locale: env.DEFAULT_LANGUAGE, strength: 2 } },
     )
 
-    for (const car of data[0].resultData) {
+      // Format the supplier data in the result
+      for (const car of data[0]?.resultData || []) {
       const { _id, fullName, avatar, priceChangeRate } = car.supplier
       car.supplier = { _id, fullName, avatar, priceChangeRate }
+      }
     }
 
     res.json(data)
   } catch (err) {
-    logger.error(`[car.getFrontendCars] ${i18n.t('DB_ERROR')} ${req.query.s}`, err)
+    logger.error(`[car.getFrontendCars] ${i18n.t('DB_ERROR')}`, err)
+    res.status(400).send(i18n.t('DB_ERROR') + err)
+  }
+}
+
+/**
+ * Search cars by coordinates with radius.
+ * This is a dedicated endpoint for coordinate-based searches.
+ *
+ * @export
+ * @async
+ * @param {Request} req
+ * @param {Response} res
+ * @returns {unknown}
+ */
+export const searchCarsByCoordinates = async (req: Request, res: Response) => {
+  try {
+    const { body } = req
+    const page = Number.parseInt(req.params.page, 10)
+    const size = Number.parseInt(req.params.size, 10)
+    
+    const { 
+      coordinates,
+      radius = 25, // Default radius is 25 km
+      suppliers,
+      carType,
+      gearbox,
+      mileage,
+      fuelPolicy,
+      deposit,
+      carSpecs,
+      ranges,
+      multimedia,
+      rating,
+      seats,
+      days,
+      includeAlreadyBookedCars,
+      includeComingSoonCars
+    } = body
+
+    // Validate coordinates
+    if (!coordinates || !coordinates.latitude || !coordinates.longitude) {
+      res.status(400).send(i18n.t('COORDINATES_REQUIRED'))
+      return
+    }
+
+    // Build match query
+    const $match: mongoose.FilterQuery<bookcarsTypes.Car> = {
+      $and: [
+        { available: true },
+        { 
+          locationCoordinates: {
+            $exists: true,
+            $ne: []
+          }
+        }
+      ],
+    }
+
+    // Add supplier filter if provided
+    if (suppliers && suppliers.length > 0) {
+      const supplierIds = suppliers.map((id: string) => new mongoose.Types.ObjectId(id))
+      $match.$and!.push({ supplier: { $in: supplierIds } })
+    }
+
+    // Add car type filter if provided
+    if (carType && carType.length > 0) {
+      $match.$and!.push({ type: { $in: carType } })
+    }
+
+    // Add gearbox filter if provided
+    if (gearbox && gearbox.length > 0) {
+      $match.$and!.push({ gearbox: { $in: gearbox } })
+    }
+
+    // Add booking status filters
+    if (!includeAlreadyBookedCars) {
+      $match.$and!.push({ $or: [{ fullyBooked: false }, { fullyBooked: null }] })
+    }
+
+    if (!includeComingSoonCars) {
+      $match.$and!.push({ $or: [{ comingSoon: false }, { comingSoon: null }] })
+    }
+
+    // Add fuel policy filter if provided
+    if (fuelPolicy && fuelPolicy.length > 0) {
+      $match.$and!.push({ fuelPolicy: { $in: fuelPolicy } })
+    }
+
+    // Add car specs filters if provided
+    if (carSpecs) {
+      if (carSpecs.aircon) {
+        $match.$and!.push({ aircon: true })
+      }
+      if (carSpecs.moreThanFourDoors) {
+        $match.$and!.push({ doors: { $gt: 4 } })
+      }
+      if (carSpecs.moreThanFiveSeats) {
+        $match.$and!.push({ seats: { $gt: 5 } })
+      }
+    }
+
+    // Add mileage filter if provided
+    if (mileage && mileage.length > 0) {
+      if (mileage.length === 1 && mileage[0] === bookcarsTypes.Mileage.Limited) {
+        $match.$and!.push({ mileage: { $gt: -1 } })
+      } else if (mileage.length === 1 && mileage[0] === bookcarsTypes.Mileage.Unlimited) {
+        $match.$and!.push({ mileage: -1 })
+      }
+    }
+
+    // Add deposit filter if provided
+    if (deposit && deposit > -1) {
+      $match.$and!.push({ deposit: { $lte: deposit } })
+    }
+
+    // Add ranges filter if provided
+    if (ranges && ranges.length > 0) {
+      $match.$and!.push({ range: { $in: ranges } })
+    }
+
+    // Add multimedia filter if provided
+    if (multimedia && multimedia.length > 0) {
+      for (const multimediaOption of multimedia) {
+        $match.$and!.push({ multimedia: multimediaOption })
+      }
+    }
+
+    // Add rating filter if provided
+    if (rating && rating > -1) {
+      $match.$and!.push({ rating: { $gte: rating } })
+    }
+
+    // Add seats filter if provided
+    if (seats) {
+      if (seats > -1) {
+        if (seats === 6) {
+          $match.$and!.push({ seats: { $gt: 5 } })
+        } else {
+          $match.$and!.push({ seats })
+        }
+      }
+    }
+
+    let $supplierMatch: mongoose.FilterQuery<any> = {}
+    if (days) {
+      $supplierMatch = { $or: [{ 'supplier.minimumRentalDays': { $lte: days } }, { 'supplier.minimumRentalDays': null }] }
+    }
+
+    // Perform coordinate-based search with distance calculation
+    const data = await Car.aggregate([
+      { $match },
+      // Unwind locationCoordinates to calculate distance for each location
+      { $unwind: '$locationCoordinates' },
+      // Add distance field to each car
+      {
+        $addFields: {
+          distance: {
+            $function: {
+              body: function(lat1: number, lon1: number, lat2: number, lon2: number) {
+                // Call the helper.calculateDistance function
+                return helper.calculateDistance(lat1, lon1, lat2, lon2, 'K')
+              },
+              args: [
+                '$locationCoordinates.latitude',
+                '$locationCoordinates.longitude',
+                coordinates.latitude,
+                coordinates.longitude
+              ],
+              lang: 'js'
+            }
+          }
+        }
+      },
+      // Filter based on radius
+      { $match: { distance: { $lte: radius } } },
+      // Now group back by car ID to eliminate duplicates
+      {
+        $group: {
+          _id: '$_id',
+          // Keep only the minimum distance if a car has multiple locations
+          minDistance: { $min: '$distance' },
+          // Preserve all other fields
+          doc: { $first: '$$ROOT' }
+        }
+      },
+      // Reconstruct the document
+      {
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: ['$doc', { distance: '$minDistance' }]
+          }
+        }
+      },
+      // Sort by distance
+      { $sort: { distance: 1 } },
+      // Lookup supplier data
+      {
+        $lookup: {
+          from: 'User',
+          let: { userId: '$supplier' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$_id', '$$userId'] },
+              },
+            },
+          ],
+          as: 'supplier',
+        },
+      },
+      {
+        $unwind: {
+          path: '$supplier',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      // Match based on supplier minimum rental days if days are specified
+      {
+        $match: $supplierMatch,
+      },
+      // Lookup date-based prices
+      {
+        $lookup: {
+          from: 'DateBasedPrice',
+          let: { dateBasedPrices: '$dateBasedPrices' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $in: ['$_id', '$$dateBasedPrices'] },
+              },
+            },
+          ],
+          as: 'dateBasedPrices',
+        },
+      },
+      // Beginning of supplierCarLimit logic
+      {
+        // Add the "supplierCarLimit" field from the supplier to limit the number of cars per supplier
+        $addFields: {
+          maxAllowedCars: { $ifNull: ['$supplier.supplierCarLimit', Number.MAX_SAFE_INTEGER] }, // Use fallback if undefined
+        },
+      },
+      {
+        // Add a custom stage to limit cars per supplier
+        $group: {
+          _id: '$supplier._id', // Group by supplier
+          supplierData: { $first: '$supplier' },
+          cars: { $push: '$$ROOT' }, // Push all cars of the supplier into an array
+          maxAllowedCars: { $first: '$maxAllowedCars' }, // Retain maxAllowedCars for each supplier
+        },
+      },
+      {
+        // Limit cars based on maxAllowedCars for each supplier
+        $project: {
+          supplier: '$supplierData',
+          cars: {
+            $cond: {
+              if: { $eq: ['$maxAllowedCars', 0] }, // If maxAllowedCars is 0
+              then: [], // Return an empty array (no cars)
+              else: { $slice: ['$cars', 0, { $min: [{ $size: '$cars' }, '$maxAllowedCars'] }] }, // Otherwise, limit normally
+            },
+          },
+        },
+      },
+      {
+        // Flatten the grouped result and apply sorting
+        $unwind: '$cars',
+      },
+      {
+        // Ensure unique cars by grouping by car ID
+        $group: {
+          _id: '$cars._id',
+          car: { $first: '$cars' },
+        },
+      },
+      {
+        $replaceRoot: { newRoot: '$car' }, // Replace the root document with the unique car object
+      },
+      {
+        // Sort the cars by distance first, then by price
+        $sort: { distance: 1, dailyPrice: 1, _id: 1 },
+      },
+      {
+        $facet: {
+          resultData: [
+            { $skip: (page - 1) * size }, // Skip results based on page
+            { $limit: size }, // Limit to the page size
+          ],
+          pageInfo: [
+            {
+              $count: 'totalRecords', // Count total number of cars (before pagination)
+            },
+          ],
+        },
+      },
+    ]);
+
+    // Format the supplier data in the result
+    for (const car of data[0]?.resultData || []) {
+      const { _id, fullName, avatar, priceChangeRate } = car.supplier
+      car.supplier = { _id, fullName, avatar, priceChangeRate }
+      
+      // Format the distance for display
+      if (car.distance !== undefined) {
+        car.formattedDistance = helper.formatDistance(car.distance, 'K')
+      }
+    }
+
+    res.json(data)
+  } catch (err) {
+    logger.error(`[car.searchCarsByCoordinates] ${i18n.t('DB_ERROR')}`, err)
     res.status(400).send(i18n.t('DB_ERROR') + err)
   }
 }

@@ -46,3 +46,24 @@ div.create-car {
     padding: 30px;
   }
 }
+
+.selected-locations {
+  margin-top: 10px;
+  margin-bottom: 15px;
+}
+
+.selected-location-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  margin-bottom: 5px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.selected-location-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

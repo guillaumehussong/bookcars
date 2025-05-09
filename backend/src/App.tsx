@@ -18,6 +18,7 @@ const CreateSupplier = lazy(() => import('@/pages/CreateSupplier'))
 const UpdateSupplier = lazy(() => import('@/pages/UpdateSupplier'))
 const Locations = lazy(() => import('@/pages/Locations'))
 const CreateLocation = lazy(() => import('@/pages/CreateLocation'))
+const BulkLocations = lazy(() => import('@/pages/BulkLocations'))
 const UpdateLocation = lazy(() => import('@/pages/UpdateLocation'))
 const Cars = lazy(() => import('@/pages/Cars'))
 const Car = lazy(() => import('@/pages/Car'))
@@ -44,21 +45,24 @@ const Scheduler = lazy(() => import('@/pages/Scheduler'))
 const BankDetails = lazy(() => import('@/pages/BankDetails'))
 const Pricing = lazy(() => import('@/pages/Pricing'))
 
-const AppLayout = () => (
-  <GlobalProvider>
-    <UserProvider>
-      <RecaptchaProvider>
-        <ScrollToTop />
-        <div className="app">
-          <Suspense fallback={<NProgressIndicator />}>
-            <Header />
-            <Outlet />
-          </Suspense>
-        </div>
-      </RecaptchaProvider>
-    </UserProvider>
-  </GlobalProvider>
-)
+// AppLayout component to wrap routes with common layout
+const AppLayout = () => {
+  return (
+    <GlobalProvider>
+      <UserProvider>
+        <RecaptchaProvider>
+          <ScrollToTop />
+          <div className="app">
+            <Suspense fallback={<NProgressIndicator />}>
+              <Header />
+              <Outlet />
+            </Suspense>
+          </div>
+        </RecaptchaProvider>
+      </UserProvider>
+    </GlobalProvider>
+  )
+}
 
 const router = createBrowserRouter([
   {
@@ -77,6 +81,7 @@ const router = createBrowserRouter([
       { path: 'update-supplier', element: <UpdateSupplier /> },
       { path: 'locations', element: <Locations /> },
       { path: 'create-location', element: <CreateLocation /> },
+      { path: 'bulk-locations', element: <BulkLocations /> },
       { path: 'update-location', element: <UpdateLocation /> },
       { path: 'cars', element: <Cars /> },
       { path: 'car', element: <Car /> },

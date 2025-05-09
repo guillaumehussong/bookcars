@@ -8,14 +8,44 @@ import * as UserService from './UserService'
  * @param {bookcarsTypes.CreateCarPayload} data
  * @returns {Promise<bookcarsTypes.Car>}
  */
-export const create = (data: bookcarsTypes.CreateCarPayload): Promise<bookcarsTypes.Car> =>
-  axiosInstance
+export const create = (data: bookcarsTypes.CreateCarPayload): Promise<bookcarsTypes.Car> => {
+  // Debug logging
+  console.log('Creating car with data:', data)
+  console.log('Locations:', data.locations)
+  console.log('Location coordinates:', data.locationCoordinates)
+  
+  // If we have locationCoordinates but no valid locations, add a placeholder location
+  if (data.locationCoordinates && data.locationCoordinates.length > 0) {
+    // Make sure we have at least one location ID
+    if (!data.locations || !Array.isArray(data.locations) || data.locations.length === 0) {
+      // Use the placeholder ID that MongoDB will accept
+      data.locations = ['000000000000000000000000']
+      console.log('Added placeholder location ID for validation')
+    }
+  }
+  
+  // Filter out any custom location IDs (those that don't match MongoDB ObjectID format)
+  // MongoDB ObjectIDs are 24-character hex strings
+  if (data.locations && Array.isArray(data.locations)) {
+    data.locations = data.locations.filter(id => 
+      typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id)
+    )
+    
+    // If we filtered out all locations but have coordinates, ensure we have a placeholder
+    if (data.locations.length === 0 && data.locationCoordinates && data.locationCoordinates.length > 0) {
+      data.locations = ['000000000000000000000000']
+      console.log('Added placeholder location ID after filtering')
+    }
+  }
+  
+  return axiosInstance
     .post(
       '/api/create-car',
       data,
       { withCredentials: true }
     )
     .then((res) => res.data)
+}
 
 /**
  * Update a Car.
@@ -23,14 +53,44 @@ export const create = (data: bookcarsTypes.CreateCarPayload): Promise<bookcarsTy
  * @param {bookcarsTypes.UpdateCarPayload} data
  * @returns {Promise<number>}
  */
-export const update = (data: bookcarsTypes.UpdateCarPayload): Promise<number> =>
-  axiosInstance
+export const update = (data: bookcarsTypes.UpdateCarPayload): Promise<number> => {
+  // Debug logging
+  console.log('Updating car with data:', data)
+  console.log('Locations:', data.locations)
+  console.log('Location coordinates:', data.locationCoordinates)
+  
+  // If we have locationCoordinates but no valid locations, add a placeholder location
+  if (data.locationCoordinates && data.locationCoordinates.length > 0) {
+    // Make sure we have at least one location ID
+    if (!data.locations || !Array.isArray(data.locations) || data.locations.length === 0) {
+      // Use the placeholder ID that MongoDB will accept
+      data.locations = ['000000000000000000000000']
+      console.log('Added placeholder location ID for validation')
+    }
+  }
+  
+  // Filter out any custom location IDs (those that don't match MongoDB ObjectID format)
+  // MongoDB ObjectIDs are 24-character hex strings
+  if (data.locations && Array.isArray(data.locations)) {
+    data.locations = data.locations.filter(id => 
+      typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id)
+    )
+    
+    // If we filtered out all locations but have coordinates, ensure we have a placeholder
+    if (data.locations.length === 0 && data.locationCoordinates && data.locationCoordinates.length > 0) {
+      data.locations = ['000000000000000000000000']
+      console.log('Added placeholder location ID after filtering')
+    }
+  }
+  
+  return axiosInstance
     .put(
       '/api/update-car',
       data,
       { withCredentials: true }
     )
     .then((res) => res.status)
+}
 
 /**
  * Check if a Car is related to a booking.

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Input,
   InputLabel,
@@ -36,6 +36,8 @@ const CreateSupplier = () => {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [location, setLocation] = useState('')
+  const [latitude, setLatitude] = useState<number | undefined>()
+  const [longitude, setLongitude] = useState<number | undefined>()
   const [bio, setBio] = useState('')
   const [error, setError] = useState(false)
   const [emailError, setEmailError] = useState(false)
@@ -53,6 +55,105 @@ const CreateSupplier = () => {
   const [priceChangeRate, setPriceChangeRate] = useState('')
   const [supplierCarLimit, setSupplierCarLimit] = useState('')
   const [notifyAdminOnNewCar, setNotifyAdminOnNewCar] = useState(false)
+
+  const autocompleteInput = useRef<HTMLInputElement>(null)
+  const [scriptLoaded, setScriptLoaded] = useState(false)
+  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+  
+  useEffect(() => {
+    // Load Google Maps script
+    if (!scriptLoaded) {
+      const script = document.createElement('script')
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`
+      script.async = true
+      script.defer = true
+      script.onload = () => {
+        setScriptLoaded(true)
+      }
+      
+      document.head.appendChild(script)
+      
+      return () => {
+        document.head.removeChild(script)
+      }
+    }
+  }, [GOOGLE_MAPS_API_KEY])
+  
+  // Manual initialization function for Google Places
+  const initializeGooglePlaces = () => {
+    if (!autocompleteInput.current) {
+      return
+    }
+    
+    try {
+      const google = (window as any).google
+      if (!google || !google.maps || !google.maps.places) {
+        console.error('Google Maps Places API not available')
+        return
+      }
+            
+      // Destroy existing autocomplete if any
+      const existingAutocomplete = autocompleteInput.current.getAttribute('data-autocomplete-initialized')
+      
+      // Create new autocomplete instance
+      const autocomplete = new google.maps.places.Autocomplete(autocompleteInput.current, {
+        types: ['geocode'],
+        fields: ['address_components', 'formatted_address', 'geometry', 'name'],
+        componentRestrictions: { country: 'sv' }
+      })
+      
+      // Mark the input as initialized
+      autocompleteInput.current.setAttribute('data-autocomplete-initialized', 'true')
+      
+      // Prevent form submission on enter key
+      autocompleteInput.current.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+        }
+      })
+      
+      // Set up place changed listener
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace()
+        
+        if (place && place.formatted_address) {
+          setLocation(place.formatted_address)
+          
+          if (place.geometry && place.geometry.location) {
+            setLatitude(place.geometry.location.lat())
+            setLongitude(place.geometry.location.lng())
+          }
+        }
+      })
+    } catch (error) {
+      console.error('Error initializing autocomplete:', error)
+    }
+  }
+  
+  useEffect(() => {
+    // Initialize autocomplete when script is loaded
+    if (scriptLoaded) {
+      // Add a small delay to ensure the Google API is fully loaded
+      const timer = setTimeout(() => {
+        initializeGooglePlaces()
+      }, 500)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [scriptLoaded])
+  
+  // Also reinitialize when the input ref changes
+  useEffect(() => {
+    if (scriptLoaded && autocompleteInput.current) {
+      initializeGooglePlaces()
+    }
+  }, [autocompleteInput.current])
+  
+  // Override the default location change handler to not reset coordinates with manual input
+  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocation(e.target.value)
+    // We don't clear coordinates here to allow manual input but keep selected coordinates
+  }
 
   const handleFullNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFullName(e.target.value)
@@ -166,10 +267,6 @@ const CreateSupplier = () => {
     validatePhone(e.target.value)
   }
 
-  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLocation(e.target.value)
-  }
-
   const handleBioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBio(e.target.value)
   }
@@ -252,6 +349,8 @@ const CreateSupplier = () => {
         priceChangeRate: priceChangeRate ? Number(priceChangeRate) : undefined,
         supplierCarLimit: supplierCarLimit ? Number(supplierCarLimit) : undefined,
         notifyAdminOnNewCar,
+        latitude,
+        longitude
       }
 
       const status = await UserService.create(data)
@@ -398,7 +497,12 @@ const CreateSupplier = () => {
 
             <FormControl fullWidth margin="dense">
               <InputLabel>{commonStrings.LOCATION}</InputLabel>
-              <Input type="text" onChange={handleLocationChange} autoComplete="off" />
+              <Input 
+                type="text" 
+                onChange={handleLocationChange} 
+                autoComplete="off" 
+                inputRef={autocompleteInput}
+              />
             </FormControl>
 
             <FormControl fullWidth margin="dense">

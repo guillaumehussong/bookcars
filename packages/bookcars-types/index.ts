@@ -171,6 +171,9 @@ export interface UpdateSupplierPayload {
   fullName: string
   phone: string
   location: string
+  latitude?: number
+  longitude?: number
+  locationCoordinates?: { lat: number, lng: number }
   bio: string
   payLater: boolean
   licenseRequired: boolean
@@ -222,6 +225,7 @@ export interface CreateCarPayload {
   multimedia: string[]
   rating?: number
   co2?: number
+  locationCoordinates?: Array<{ name: string, latitude: number, longitude: number }>
 }
 
 export interface UpdateCarPayload extends CreateCarPayload {
@@ -251,6 +255,8 @@ export interface GetCarsPayload {
   days?: number
   includeAlreadyBookedCars?: boolean
   includeComingSoonCars?: boolean
+  coordinates?: { latitude: number, longitude: number }
+  radius?: number // Search radius in kilometers
 }
 
 export interface SignUpPayload {
@@ -273,6 +279,9 @@ export interface CreateUserPayload {
   email?: string
   phone: string
   location: string
+  latitude?: number
+  longitude?: number
+  locationCoordinates?: { lat: number, lng: number }
   bio: string
   fullName: string
   type?: string
@@ -381,6 +390,9 @@ export interface User {
   avatar?: string
   bio?: string
   location?: string
+  latitude?: number
+  longitude?: number
+  locationCoordinates?: { lat: number, lng: number }
   type?: string
   blacklisted?: boolean
   payLater?: boolean
@@ -426,6 +438,10 @@ export interface Location {
   values?: LocationValue[]
   image?: string
   parkingSpots?: ParkingSpot[]
+  coordinates?: {
+    latitude: number
+    longitude: number
+  }
 }
 
 export interface Country {
@@ -490,6 +506,7 @@ export interface Car {
   rating?: number
   trips: number
   co2?: number
+  distance?: number // Distance in kilometers from search coordinates
   [propKey: string]: any
 }
 

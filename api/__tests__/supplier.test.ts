@@ -714,7 +714,7 @@ describe('POST /api/backend-suppliers', () => {
     payload.seats = -1
     payload.mileage = [bookcarsTypes.Mileage.Unlimited]
     res = await request(app)
-      .post('/api/backend-suppliers')
+      .post('/api/-suppliers')
       .set(env.X_ACCESS_TOKEN, token)
       .send(payload)
     expect(res.statusCode).toBe(200)
